@@ -11,8 +11,6 @@
 [![Contribute with Gitpod](https://img.shields.io/badge/Contribute%20with-Gitpod-908a85?logo=gitpod&color=green)](https://gitpod.io/#https://github.com/go-gitea/gitea)
 [![](https://badges.crowdin.net/gitea/localized.svg)](https://crowdin.com/project/gitea "Crowdin")
 
-[View this document in Chinese](./README_ZH.md)
-
 ## Purpose
 
 The goal of this project is to make the easiest, fastest, and most
