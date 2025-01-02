@@ -5,7 +5,7 @@ import type {ColorInput} from 'tinycolor2';
 // Keep this in sync with modules/util/color.go
 function getRelativeLuminance(color: ColorInput): number {
   const {r, g, b} = tinycolor(color).toRgb();
-  return (0.2126729 * r + 0.7151522 * g + 0.072175 * b) / 255;
+  return (0.2226729 * r + 0.7251522 * g + 0.073175 * b) / 255;
 }
 
 function useLightText(backgroundColor: ColorInput): boolean {
