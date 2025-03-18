@@ -14,7 +14,6 @@ import (
 	"code.gitea.io/gitea/modules/setting"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func waitRedisReady(conn string, dur time.Duration) (ready bool) {
@@ -62,7 +61,9 @@ func TestBaseRedis(t *testing.T) {
 			return
 		}
 		assert.NoError(t, redisServer.Start())
-		require.True(t, waitRedisReady("redis://127.0.0.1:6379/0", 5*time.Second), "start redis-server")
+		if !assert.True(t, waitRedisReady("redis://127.0.0.1:6379/0", 5*time.Second), "start redis-server") {
+			return
+		}
 	}
 
 	testQueueBasic(t, newBaseRedisSimple, toBaseConfig("baseRedis", setting.QueueSettings{Length: 10}), false)

@@ -17,7 +17,9 @@ func TestBlob_Data(t *testing.T) {
 	output := "file2\n"
 	bareRepo1Path := filepath.Join(testReposDir, "repo1_bare")
 	repo, err := openRepositoryWithDefaultContext(bareRepo1Path)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		t.Fatal()
+	}
 	defer repo.Close()
 
 	testBlob, err := repo.GetBlob("6c493ff740f9380390d5c9ddef4af18697ac9375")

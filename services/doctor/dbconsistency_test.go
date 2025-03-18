@@ -14,7 +14,6 @@ import (
 	"code.gitea.io/gitea/modules/log"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestConsistencyCheck(t *testing.T) {
@@ -22,7 +21,9 @@ func TestConsistencyCheck(t *testing.T) {
 	idx := slices.IndexFunc(checks, func(check consistencyCheck) bool {
 		return check.Name == "Orphaned OAuth2Application without existing User"
 	})
-	require.NotEqual(t, -1, idx)
+	if !assert.NotEqual(t, -1, idx) {
+		return
+	}
 
 	_ = db.TruncateBeans(db.DefaultContext, &auth.OAuth2Application{}, &user.User{})
 	_ = db.TruncateBeans(db.DefaultContext, &auth.OAuth2Application{}, &auth.OAuth2Application{})

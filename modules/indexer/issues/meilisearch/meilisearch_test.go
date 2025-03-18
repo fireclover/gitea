@@ -15,7 +15,6 @@ import (
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestMeilisearchIndexer(t *testing.T) {
@@ -33,10 +32,20 @@ func TestMeilisearchIndexer(t *testing.T) {
 		key = os.Getenv("TEST_MEILISEARCH_KEY")
 	}
 
-	require.Eventually(t, func() bool {
+	ok := false
+	for i := 0; i < 60; i++ {
 		resp, err := http.Get(url)
-		return err == nil && resp.StatusCode == http.StatusOK
-	}, time.Minute, time.Second, "Expected meilisearch to be up")
+		if err == nil && resp.StatusCode == http.StatusOK {
+			ok = true
+			break
+		}
+		t.Logf("Waiting for meilisearch to be up: %v", err)
+		time.Sleep(time.Second)
+	}
+	if !ok {
+		t.Fatalf("Failed to wait for meilisearch to be up")
+		return
+	}
 
 	indexer := NewIndexer(url, key, fmt.Sprintf("test_meilisearch_indexer_%d", time.Now().Unix()))
 	defer indexer.Close()

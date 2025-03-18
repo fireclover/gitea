@@ -192,18 +192,23 @@ c,d,e`,
 
 	for n, c := range cases {
 		diff, err := ParsePatch(db.DefaultContext, setting.Git.MaxGitDiffLines, setting.Git.MaxGitDiffLineCharacters, setting.Git.MaxGitDiffFiles, strings.NewReader(c.diff), "")
-		assert.NoError(t, err)
+		if err != nil {
+			t.Errorf("ParsePatch failed: %s", err)
+		}
 
 		var baseReader *csv.Reader
 		if len(c.base) > 0 {
 			baseReader, err = csv_module.CreateReaderAndDetermineDelimiter(nil, strings.NewReader(c.base))
-			assert.NoError(t, err)
+			if err != nil {
+				t.Errorf("CreateReaderAndDetermineDelimiter failed: %s", err)
+			}
 		}
-
 		var headReader *csv.Reader
 		if len(c.head) > 0 {
 			headReader, err = csv_module.CreateReaderAndDetermineDelimiter(nil, strings.NewReader(c.head))
-			assert.NoError(t, err)
+			if err != nil {
+				t.Errorf("CreateReaderAndDetermineDelimiter failed: %s", err)
+			}
 		}
 
 		result, err := CreateCsvDiff(diff.Files[0], baseReader, headReader)

@@ -19,7 +19,6 @@ import (
 
 	dmp "github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestDiffToHTML(t *testing.T) {
@@ -629,8 +628,9 @@ func TestDiffLine_GetCommentSide(t *testing.T) {
 
 func TestGetDiffRangeWithWhitespaceBehavior(t *testing.T) {
 	gitRepo, err := git.OpenRepository(git.DefaultContext, "./testdata/academic-module")
-	require.NoError(t, err)
-
+	if !assert.NoError(t, err) {
+		return
+	}
 	defer gitRepo.Close()
 	for _, behavior := range []git.TrustedCmdArgs{{"-w"}, {"--ignore-space-at-eol"}, {"-b"}, nil} {
 		diffs, err := GetDiff(db.DefaultContext, gitRepo,

@@ -20,7 +20,6 @@ import (
 	wiki_service "code.gitea.io/gitea/services/wiki"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -67,9 +66,12 @@ func assertWikiNotExists(t *testing.T, repo *repo_model.Repository, wikiName wik
 
 func assertPagesMetas(t *testing.T, expectedNames []string, metas any) {
 	pageMetas, ok := metas.([]PageMeta)
-	require.True(t, ok)
-	require.Len(t, pageMetas, len(expectedNames))
-
+	if !assert.True(t, ok) {
+		return
+	}
+	if !assert.Len(t, pageMetas, len(expectedNames)) {
+		return
+	}
 	for i, pageMeta := range pageMetas {
 		assert.EqualValues(t, expectedNames[i], pageMeta.Name)
 	}

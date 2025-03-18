@@ -62,7 +62,11 @@ func Commits(ctx *context.Context) {
 	}
 	ctx.Data["PageIsViewCode"] = true
 
-	commitsCount := ctx.Repo.CommitsCount
+	commitsCount, err := ctx.Repo.GetCommitsCount()
+	if err != nil {
+		ctx.ServerError("GetCommitsCount", err)
+		return
+	}
 
 	page := ctx.FormInt("page")
 	if page <= 1 {
@@ -125,6 +129,12 @@ func Graph(ctx *context.Context) {
 	ctx.Data["SelectedBranches"] = realBranches
 	files := ctx.FormStrings("file")
 
+	commitsCount, err := ctx.Repo.GetCommitsCount()
+	if err != nil {
+		ctx.ServerError("GetCommitsCount", err)
+		return
+	}
+
 	graphCommitsCount, err := ctx.Repo.GetCommitGraphsCount(ctx, hidePRRefs, realBranches, files)
 	if err != nil {
 		log.Warn("GetCommitGraphsCount error for generate graph exclude prs: %t branches: %s in %-v, Will Ignore branches and try again. Underlying Error: %v", hidePRRefs, branches, ctx.Repo.Repository, err)
@@ -161,6 +171,7 @@ func Graph(ctx *context.Context) {
 
 	ctx.Data["Username"] = ctx.Repo.Owner.Name
 	ctx.Data["Reponame"] = ctx.Repo.Repository.Name
+	ctx.Data["CommitCount"] = commitsCount
 
 	paginator := context.NewPagination(int(graphCommitsCount), setting.UI.GraphMaxCommitNum, page, 5)
 	paginator.AddParamFromRequest(ctx.Req)
@@ -180,7 +191,7 @@ func SearchCommits(ctx *context.Context) {
 
 	query := ctx.FormTrim("q")
 	if len(query) == 0 {
-		ctx.Redirect(ctx.Repo.RepoLink + "/commits/" + ctx.Repo.RefTypeNameSubURL())
+		ctx.Redirect(ctx.Repo.RepoLink + "/commits/" + ctx.Repo.BranchNameSubURL())
 		return
 	}
 
@@ -211,7 +222,7 @@ func FileHistory(ctx *context.Context) {
 		return
 	}
 
-	commitsCount, err := ctx.Repo.GitRepo.FileCommitsCount(ctx.Repo.RefFullName.ShortName(), fileName) // FIXME: legacy code used ShortName
+	commitsCount, err := ctx.Repo.GitRepo.FileCommitsCount(ctx.Repo.RefName, fileName)
 	if err != nil {
 		ctx.ServerError("FileCommitsCount", err)
 		return
@@ -227,7 +238,7 @@ func FileHistory(ctx *context.Context) {
 
 	commits, err := ctx.Repo.GitRepo.CommitsByFileAndRange(
 		git.CommitsByFileAndRangeOptions{
-			Revision: ctx.Repo.RefFullName.ShortName(), // FIXME: legacy code used ShortName
+			Revision: ctx.Repo.RefName,
 			File:     fileName,
 			Page:     page,
 		})
@@ -377,6 +388,12 @@ func Diff(ctx *context.Context) {
 			ctx.ServerError("PostProcessCommitMessage", err)
 			return
 		}
+	}
+
+	ctx.Data["BranchName"], err = commit.GetBranchName()
+	if err != nil {
+		ctx.ServerError("commit.GetBranchName", err)
+		return
 	}
 
 	ctx.HTML(http.StatusOK, tplCommitPage)

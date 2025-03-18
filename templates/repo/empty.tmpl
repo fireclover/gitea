@@ -14,13 +14,14 @@
 						{{end}}
 					</div>
 				{{end}}
-
 				{{if .Repository.IsBroken}}
-					<div class="ui segment center">{{ctx.Locale.Tr "repo.broken_message"}}</div>
-				{{else if .RepoHasContentsWithoutBranch}}
-					<div class="ui segment center">{{ctx.Locale.Tr "repo.no_branch"}}</div>
+						<div class="ui segment center">
+							{{ctx.Locale.Tr "repo.broken_message"}}
+						</div>
 				{{else if .CanWriteCode}}
-					<h4 class="ui top attached header">{{ctx.Locale.Tr "repo.quick_guide"}}</h4>
+					<h4 class="ui top attached header">
+						{{ctx.Locale.Tr "repo.quick_guide"}}
+					</h4>
 					<div class="ui attached guide table segment empty-repo-guide">
 						<div class="item">
 							<h3>{{ctx.Locale.Tr "repo.clone_this_repo"}} <small>{{ctx.Locale.Tr "repo.clone_helper" "http://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository"}}</small></h3>
@@ -65,10 +66,12 @@ git push -u origin {{.Repository.DefaultBranch}}</code></pre>
 								</div>
 							</div>
 						{{end}}
-					</div>
-				{{else}}
-					<div class="ui segment center">{{ctx.Locale.Tr "repo.empty_message"}}</div>
-				{{end}}
+					{{else}}
+						<div class="ui segment center">
+							{{ctx.Locale.Tr "repo.empty_message"}}
+						</div>
+					{{end}}
+				</div>
 			</div>
 		</div>
 	</div>

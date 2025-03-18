@@ -132,11 +132,12 @@ func createPackageAndVersion(ctx context.Context, pvci *PackageCreationInfo, all
 	}
 	var err error
 	if p, err = packages_model.TryInsertPackage(ctx, p); err != nil {
-		if !errors.Is(err, packages_model.ErrDuplicatePackage) {
+		if err == packages_model.ErrDuplicatePackage {
+			packageCreated = false
+		} else {
 			log.Error("Error inserting package: %v", err)
 			return nil, false, err
 		}
-		packageCreated = false
 	}
 
 	if packageCreated {
@@ -162,10 +163,11 @@ func createPackageAndVersion(ctx context.Context, pvci *PackageCreationInfo, all
 		MetadataJSON: string(metadataJSON),
 	}
 	if pv, err = packages_model.GetOrInsertVersion(ctx, pv); err != nil {
-		if errors.Is(err, packages_model.ErrDuplicatePackageVersion) && allowDuplicate {
+		if err == packages_model.ErrDuplicatePackageVersion {
 			versionCreated = false
-		} else {
-			log.Error("Error inserting package: %v", err) // other error, or disallowing duplicates
+		}
+		if err != packages_model.ErrDuplicatePackageVersion || !allowDuplicate {
+			log.Error("Error inserting package: %v", err)
 			return nil, false, err
 		}
 	}
@@ -431,7 +433,7 @@ func GetOrCreateInternalPackageVersion(ctx context.Context, ownerID int64, packa
 		}
 		var err error
 		if p, err = packages_model.TryInsertPackage(ctx, p); err != nil {
-			if !errors.Is(err, packages_model.ErrDuplicatePackage) {
+			if err != packages_model.ErrDuplicatePackage {
 				log.Error("Error inserting package: %v", err)
 				return err
 			}

@@ -31,20 +31,19 @@ import (
 // handle elsewhere.
 type ArchiveRequest struct {
 	RepoID   int64
+	refName  string
 	Type     git.ArchiveType
 	CommitID string
-
-	archiveRefShortName string // the ref short name to download the archive, for example: "master", "v1.0.0", "commit id"
 }
 
 // ErrUnknownArchiveFormat request archive format is not supported
 type ErrUnknownArchiveFormat struct {
-	RequestNameType string
+	RequestFormat string
 }
 
 // Error implements error
 func (err ErrUnknownArchiveFormat) Error() string {
-	return fmt.Sprintf("unknown format: %s", err.RequestNameType)
+	return fmt.Sprintf("unknown format: %s", err.RequestFormat)
 }
 
 // Is implements error
@@ -55,12 +54,12 @@ func (ErrUnknownArchiveFormat) Is(err error) bool {
 
 // RepoRefNotFoundError is returned when a requested reference (commit, tag) was not found.
 type RepoRefNotFoundError struct {
-	RefShortName string
+	RefName string
 }
 
 // Error implements error.
 func (e RepoRefNotFoundError) Error() string {
-	return fmt.Sprintf("unrecognized repository reference: %s", e.RefShortName)
+	return fmt.Sprintf("unrecognized repository reference: %s", e.RefName)
 }
 
 func (e RepoRefNotFoundError) Is(err error) bool {
@@ -68,23 +67,43 @@ func (e RepoRefNotFoundError) Is(err error) bool {
 	return ok
 }
 
+func ParseFileName(uri string) (ext string, tp git.ArchiveType, err error) {
+	switch {
+	case strings.HasSuffix(uri, ".zip"):
+		ext = ".zip"
+		tp = git.ZIP
+	case strings.HasSuffix(uri, ".tar.gz"):
+		ext = ".tar.gz"
+		tp = git.TARGZ
+	case strings.HasSuffix(uri, ".bundle"):
+		ext = ".bundle"
+		tp = git.BUNDLE
+	default:
+		return "", 0, ErrUnknownArchiveFormat{RequestFormat: uri}
+	}
+	return ext, tp, nil
+}
+
 // NewRequest creates an archival request, based on the URI.  The
 // resulting ArchiveRequest is suitable for being passed to Await()
 // if it's determined that the request still needs to be satisfied.
-func NewRequest(repoID int64, repo *git.Repository, archiveRefExt string) (*ArchiveRequest, error) {
-	// here the archiveRefShortName is not a clear ref, it could be a tag, branch or commit id
-	archiveRefShortName, archiveType := git.SplitArchiveNameType(archiveRefExt)
-	if archiveType == git.ArchiveUnknown {
-		return nil, ErrUnknownArchiveFormat{archiveRefExt}
+func NewRequest(repoID int64, repo *git.Repository, refName string, fileType git.ArchiveType) (*ArchiveRequest, error) {
+	if fileType < git.ZIP || fileType > git.BUNDLE {
+		return nil, ErrUnknownArchiveFormat{RequestFormat: fileType.String()}
+	}
+
+	r := &ArchiveRequest{
+		RepoID:  repoID,
+		refName: refName,
+		Type:    fileType,
 	}
 
 	// Get corresponding commit.
-	commitID, err := repo.ConvertToGitID(archiveRefShortName)
+	commitID, err := repo.ConvertToGitID(r.refName)
 	if err != nil {
-		return nil, RepoRefNotFoundError{RefShortName: archiveRefShortName}
+		return nil, RepoRefNotFoundError{RefName: r.refName}
 	}
 
-	r := &ArchiveRequest{RepoID: repoID, archiveRefShortName: archiveRefShortName, Type: archiveType}
 	r.CommitID = commitID.String()
 	return r, nil
 }
@@ -92,11 +111,11 @@ func NewRequest(repoID int64, repo *git.Repository, archiveRefExt string) (*Arch
 // GetArchiveName returns the name of the caller, based on the ref used by the
 // caller to create this request.
 func (aReq *ArchiveRequest) GetArchiveName() string {
-	return strings.ReplaceAll(aReq.archiveRefShortName, "/", "-") + "." + aReq.Type.String()
+	return strings.ReplaceAll(aReq.refName, "/", "-") + "." + aReq.Type.String()
 }
 
 // Await awaits the completion of an ArchiveRequest. If the archive has
-// already been prepared the method returns immediately. Otherwise, an archiver
+// already been prepared the method returns immediately. Otherwise an archiver
 // process will be started and its completion awaited. On success the returned
 // RepoArchiver may be used to download the archive. Note that even if the
 // context is cancelled/times out a started archiver will still continue to run
@@ -189,8 +208,8 @@ func doArchive(ctx context.Context, r *ArchiveRequest) (*repo_model.RepoArchiver
 
 	rd, w := io.Pipe()
 	defer func() {
-		_ = w.Close()
-		_ = rd.Close()
+		w.Close()
+		rd.Close()
 	}()
 	done := make(chan error, 1) // Ensure that there is some capacity which will ensure that the goroutine below can always finish
 	repo, err := repo_model.GetRepositoryByID(ctx, archiver.RepoID)
@@ -211,7 +230,7 @@ func doArchive(ctx context.Context, r *ArchiveRequest) (*repo_model.RepoArchiver
 			}
 		}()
 
-		if archiver.Type == git.ArchiveBundle {
+		if archiver.Type == git.BUNDLE {
 			err = gitRepo.CreateBundle(
 				ctx,
 				archiver.CommitID,

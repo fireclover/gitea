@@ -355,7 +355,7 @@ func (a *Action) GetBranch() string {
 
 // GetRefLink returns the action's ref link.
 func (a *Action) GetRefLink(ctx context.Context) string {
-	return a.GetRepoLink(ctx) + "/src/" + git.RefName(a.RefName).RefWebLinkPath()
+	return git.RefURL(a.GetRepoLink(ctx), a.RefName)
 }
 
 // GetTag returns the action's repository tag.

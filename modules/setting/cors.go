@@ -16,6 +16,7 @@ var CORSConfig = struct {
 	AllowCredentials bool
 	Headers          []string
 	XFrameOptions    string
+	ContentSecurityPolicy string
 }{
 	AllowDomain:   []string{"*"},
 	Methods:       []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},

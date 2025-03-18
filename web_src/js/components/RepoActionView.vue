@@ -1,7 +1,7 @@
 <script lang="ts">
 import {SvgIcon} from '../svg.ts';
 import ActionRunStatus from './ActionRunStatus.vue';
-import {defineComponent, type PropType} from 'vue';
+import {createApp} from 'vue';
 import {createElementFromAttrs, toggleElem} from '../utils/dom.ts';
 import {formatDatetime} from '../utils/time.ts';
 import {renderAnsi} from '../render/ansi.ts';
@@ -38,7 +38,7 @@ function parseLineCommand(line: LogLine): LogLineCommand | null {
   return null;
 }
 
-function isLogElementInViewport(el: Element): boolean {
+function isLogElementInViewport(el: HTMLElement): boolean {
   const rect = el.getBoundingClientRect();
   return rect.top >= 0 && rect.bottom <= window.innerHeight; // only check height but not width
 }
@@ -57,28 +57,25 @@ function getLocaleStorageOptions(): LocaleStorageOptions {
   return {autoScroll: true, expandRunning: false};
 }
 
-export default defineComponent({
+const sfc = {
   name: 'RepoActionView',
   components: {
     SvgIcon,
     ActionRunStatus,
   },
   props: {
-    runIndex: {
-      type: String,
-      default: '',
+    runIndex: String,
+    jobIndex: String,
+    actionsURL: String,
+    locale: Object,
+  },
+
+  watch: {
+    optionAlwaysAutoScroll() {
+      this.saveLocaleStorageOptions();
     },
-    jobIndex: {
-      type: String,
-      default: '',
-    },
-    actionsURL: {
-      type: String,
-      default: '',
-    },
-    locale: {
-      type: Object as PropType<Record<string, string>>,
-      default: null,
+    optionAlwaysExpandRunning() {
+      this.saveLocaleStorageOptions();
     },
   },
 
@@ -105,11 +102,10 @@ export default defineComponent({
         link: '',
         title: '',
         titleHTML: '',
-        status: 'unknown' as RunStatus,
+        status: '',
         canCancel: false,
         canApprove: false,
         canRerun: false,
-        canDeleteArtifact: false,
         done: false,
         workflowID: '',
         workflowLink: '',
@@ -135,7 +131,6 @@ export default defineComponent({
           branch: {
             name: '',
             link: '',
-            isDeleted: false,
           },
         },
       },
@@ -153,16 +148,7 @@ export default defineComponent({
     };
   },
 
-  watch: {
-    optionAlwaysAutoScroll() {
-      this.saveLocaleStorageOptions();
-    },
-    optionAlwaysExpandRunning() {
-      this.saveLocaleStorageOptions();
-    },
-  },
-
-  async mounted() { // eslint-disable-line @typescript-eslint/no-misused-promises
+  async mounted() {
     // load job data and then auto-reload periodically
     // need to await first loadJob so this.currentJobStepsStates is initialized and can be used in hashChangeListener
     await this.loadJob();
@@ -200,7 +186,6 @@ export default defineComponent({
     // get the active logs container element, either the `job-step-logs` or the `job-log-list` in the `job-log-group`
     getActiveLogsContainer(stepIndex: number): HTMLElement {
       const el = this.getJobStepLogsContainer(stepIndex);
-      // @ts-expect-error - _stepLogsActiveContainer is a custom property
       return el._stepLogsActiveContainer ?? el;
     },
     // begin a log group
@@ -278,7 +263,7 @@ export default defineComponent({
       const el = this.getJobStepLogsContainer(stepIndex);
       // if the logs container is empty, then auto-scroll if the step is expanded
       if (!el.lastChild) return this.currentJobStepsStates[stepIndex].expanded;
-      return isLogElementInViewport(el.lastChild as Element);
+      return isLogElementInViewport(el.lastChild);
     },
 
     appendLogs(stepIndex: number, startTime: number, logLines: LogLine[]) {
@@ -395,7 +380,7 @@ export default defineComponent({
 
     toggleTimeDisplay(type: string) {
       this.timeVisible[`log-time-${type}`] = !this.timeVisible[`log-time-${type}`];
-      for (const el of (this.$refs.steps as HTMLElement).querySelectorAll(`.log-time-${type}`)) {
+      for (const el of this.$refs.steps.querySelectorAll(`.log-time-${type}`)) {
         toggleElem(el, this.timeVisible[`log-time-${type}`]);
       }
     },
@@ -429,12 +414,59 @@ export default defineComponent({
         // so logline can be selected by querySelector
         await this.loadJob();
       }
-      const logLine = (this.$refs.steps as HTMLElement).querySelector(selectedLogStep);
+      const logLine = this.$refs.steps.querySelector(selectedLogStep);
       if (!logLine) return;
-      logLine.querySelector<HTMLAnchorElement>('.line-num').click();
+      logLine.querySelector('.line-num').click();
     },
   },
-});
+};
+
+export default sfc;
+
+export function initRepositoryActionView() {
+  const el = document.querySelector('#repo-action-view');
+  if (!el) return;
+
+  // TODO: the parent element's full height doesn't work well now,
+  // but we can not pollute the global style at the moment, only fix the height problem for pages with this component
+  const parentFullHeight = document.querySelector<HTMLElement>('body > div.full.height');
+  if (parentFullHeight) parentFullHeight.style.paddingBottom = '0';
+
+  const view = createApp(sfc, {
+    runIndex: el.getAttribute('data-run-index'),
+    jobIndex: el.getAttribute('data-job-index'),
+    actionsURL: el.getAttribute('data-actions-url'),
+    locale: {
+      approve: el.getAttribute('data-locale-approve'),
+      cancel: el.getAttribute('data-locale-cancel'),
+      rerun: el.getAttribute('data-locale-rerun'),
+      rerun_all: el.getAttribute('data-locale-rerun-all'),
+      scheduled: el.getAttribute('data-locale-runs-scheduled'),
+      commit: el.getAttribute('data-locale-runs-commit'),
+      pushedBy: el.getAttribute('data-locale-runs-pushed-by'),
+      artifactsTitle: el.getAttribute('data-locale-artifacts-title'),
+      areYouSure: el.getAttribute('data-locale-are-you-sure'),
+      confirmDeleteArtifact: el.getAttribute('data-locale-confirm-delete-artifact'),
+      showTimeStamps: el.getAttribute('data-locale-show-timestamps'),
+      showLogSeconds: el.getAttribute('data-locale-show-log-seconds'),
+      showFullScreen: el.getAttribute('data-locale-show-full-screen'),
+      downloadLogs: el.getAttribute('data-locale-download-logs'),
+      status: {
+        unknown: el.getAttribute('data-locale-status-unknown'),
+        waiting: el.getAttribute('data-locale-status-waiting'),
+        running: el.getAttribute('data-locale-status-running'),
+        success: el.getAttribute('data-locale-status-success'),
+        failure: el.getAttribute('data-locale-status-failure'),
+        cancelled: el.getAttribute('data-locale-status-cancelled'),
+        skipped: el.getAttribute('data-locale-status-skipped'),
+        blocked: el.getAttribute('data-locale-status-blocked'),
+      },
+      logsAlwaysAutoScroll: el.getAttribute('data-locale-logs-always-auto-scroll'),
+      logsAlwaysExpandRunning: el.getAttribute('data-locale-logs-always-expand-running'),
+    },
+  });
+  view.mount(el);
+}
 </script>
 <template>
   <div class="ui container action-view-container">

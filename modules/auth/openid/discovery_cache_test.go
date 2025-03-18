@@ -6,9 +6,6 @@ package openid
 import (
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 type testDiscoveredInfo struct{}
@@ -32,17 +29,21 @@ func TestTimedDiscoveryCache(t *testing.T) {
 	dc.Put("foo", &testDiscoveredInfo{}) // openid.opEndpoint: "a", openid.opLocalID: "b", openid.claimedID: "c"})
 
 	// Make sure we can retrieve them
-	di := dc.Get("foo")
-	require.NotNil(t, di)
-	assert.Equal(t, "opEndpoint", di.OpEndpoint())
-	assert.Equal(t, "opLocalID", di.OpLocalID())
-	assert.Equal(t, "claimedID", di.ClaimedID())
+	if di := dc.Get("foo"); di == nil {
+		t.Errorf("Expected a result, got nil")
+	} else if di.OpEndpoint() != "opEndpoint" || di.OpLocalID() != "opLocalID" || di.ClaimedID() != "claimedID" {
+		t.Errorf("Expected opEndpoint opLocalID claimedID, got %v %v %v", di.OpEndpoint(), di.OpLocalID(), di.ClaimedID())
+	}
 
 	// Attempt to get a non-existent value
-	assert.Nil(t, dc.Get("bar"))
+	if di := dc.Get("bar"); di != nil {
+		t.Errorf("Expected nil, got %v", di)
+	}
 
 	// Sleep one second and try retrieve again
 	time.Sleep(1 * time.Second)
 
-	assert.Nil(t, dc.Get("foo"))
+	if di := dc.Get("foo"); di != nil {
+		t.Errorf("Expected a nil, got a result")
+	}
 }

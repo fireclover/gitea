@@ -38,7 +38,7 @@ func NewFuncMap() template.FuncMap {
 		"Iif":          iif,
 		"Eval":         evalTokens,
 		"SafeHTML":     safeHTML,
-		"HTMLFormat":   htmlFormat,
+		"HTMLFormat":   htmlutil.HTMLFormat,
 		"HTMLEscape":   htmlEscape,
 		"QueryEscape":  queryEscape,
 		"QueryBuild":   QueryBuild,
@@ -69,7 +69,7 @@ func NewFuncMap() template.FuncMap {
 		// time / number / format
 		"FileSize": base.FileSize,
 		"CountFmt": countFmt,
-		"Sec2Time": util.SecToHours,
+		"Sec2Time": util.SecToTime,
 
 		"TimeEstimateString": timeEstimateString,
 
@@ -203,20 +203,6 @@ func htmlEscape(s any) template.HTML {
 		return template.HTML(html.EscapeString(v))
 	case template.HTML:
 		return v
-	}
-	panic(fmt.Sprintf("unexpected type %T", s))
-}
-
-func htmlFormat(s any, args ...any) template.HTML {
-	if len(args) == 0 {
-		// to prevent developers from calling "HTMLFormat $userInput" by mistake which will lead to XSS
-		panic("missing arguments for HTMLFormat")
-	}
-	switch v := s.(type) {
-	case string:
-		return htmlutil.HTMLFormat(template.HTML(v), args...)
-	case template.HTML:
-		return htmlutil.HTMLFormat(v, args...)
 	}
 	panic(fmt.Sprintf("unexpected type %T", s))
 }

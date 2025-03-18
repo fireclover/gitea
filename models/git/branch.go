@@ -167,9 +167,6 @@ func GetBranch(ctx context.Context, repoID int64, branchName string) (*Branch, e
 			BranchName: branchName,
 		}
 	}
-	// FIXME: this design is not right: it doesn't check `branch.IsDeleted`, it doesn't make sense to make callers to check IsDeleted again and again.
-	// It causes inconsistency with `GetBranches` and `git.GetBranch`, and will lead to strange bugs
-	// In the future, there should be 2 functions: `GetBranchExisting` and `GetBranchWithDeleted`
 	return &branch, nil
 }
 
@@ -443,8 +440,6 @@ type FindRecentlyPushedNewBranchesOptions struct {
 }
 
 type RecentlyPushedNewBranch struct {
-	BranchRepo        *repo_model.Repository
-	BranchName        string
 	BranchDisplayName string
 	BranchLink        string
 	BranchCompareURL  string
@@ -545,9 +540,7 @@ func FindRecentlyPushedNewBranches(ctx context.Context, doer *user_model.User, o
 				branchDisplayName = fmt.Sprintf("%s:%s", branch.Repo.FullName(), branchDisplayName)
 			}
 			newBranches = append(newBranches, &RecentlyPushedNewBranch{
-				BranchRepo:        branch.Repo,
 				BranchDisplayName: branchDisplayName,
-				BranchName:        branch.Name,
 				BranchLink:        fmt.Sprintf("%s/src/branch/%s", branch.Repo.Link(), util.PathEscapeSegments(branch.Name)),
 				BranchCompareURL:  branch.Repo.ComposeBranchCompareURL(opts.BaseRepo, branch.Name),
 				CommitTime:        branch.CommitTime,

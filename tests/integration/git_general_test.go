@@ -32,7 +32,6 @@ import (
 	"code.gitea.io/gitea/tests"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -727,8 +726,9 @@ func doCreateAgitFlowPull(dstPath string, ctx *APITestContext, headBranch string
 		}
 
 		gitRepo, err := git.OpenRepository(git.DefaultContext, dstPath)
-		require.NoError(t, err)
-
+		if !assert.NoError(t, err) {
+			return
+		}
 		defer gitRepo.Close()
 
 		var (
@@ -736,7 +736,9 @@ func doCreateAgitFlowPull(dstPath string, ctx *APITestContext, headBranch string
 			commit   string
 		)
 		repo, err := repo_model.GetRepositoryByOwnerAndName(db.DefaultContext, ctx.Username, ctx.Reponame)
-		require.NoError(t, err)
+		if !assert.NoError(t, err) {
+			return
+		}
 
 		pullNum := unittest.GetCount(t, &issues_model.PullRequest{})
 
@@ -744,7 +746,9 @@ func doCreateAgitFlowPull(dstPath string, ctx *APITestContext, headBranch string
 
 		t.Run("AddCommit", func(t *testing.T) {
 			err := os.WriteFile(path.Join(dstPath, "test_file"), []byte("## test content"), 0o666)
-			require.NoError(t, err)
+			if !assert.NoError(t, err) {
+				return
+			}
 
 			err = git.AddChanges(dstPath, true)
 			assert.NoError(t, err)
@@ -769,37 +773,43 @@ func doCreateAgitFlowPull(dstPath string, ctx *APITestContext, headBranch string
 
 		t.Run("Push", func(t *testing.T) {
 			err := git.NewCommand(git.DefaultContext, "push", "origin", "HEAD:refs/for/master", "-o").AddDynamicArguments("topic=" + headBranch).Run(&git.RunOpts{Dir: dstPath})
-			require.NoError(t, err)
-
+			if !assert.NoError(t, err) {
+				return
+			}
 			unittest.AssertCount(t, &issues_model.PullRequest{}, pullNum+1)
 			pr1 = unittest.AssertExistsAndLoadBean(t, &issues_model.PullRequest{
 				HeadRepoID: repo.ID,
 				Flow:       issues_model.PullRequestFlowAGit,
 			})
-			require.NotEmpty(t, pr1)
-
+			if !assert.NotEmpty(t, pr1) {
+				return
+			}
 			prMsg, err := doAPIGetPullRequest(*ctx, ctx.Username, ctx.Reponame, pr1.Index)(t)
-			require.NoError(t, err)
-
+			if !assert.NoError(t, err) {
+				return
+			}
 			assert.Equal(t, "user2/"+headBranch, pr1.HeadBranch)
 			assert.False(t, prMsg.HasMerged)
 			assert.Contains(t, "Testing commit 1", prMsg.Body)
 			assert.Equal(t, commit, prMsg.Head.Sha)
 
 			_, _, err = git.NewCommand(git.DefaultContext, "push", "origin").AddDynamicArguments("HEAD:refs/for/master/test/" + headBranch).RunStdString(&git.RunOpts{Dir: dstPath})
-			require.NoError(t, err)
-
+			if !assert.NoError(t, err) {
+				return
+			}
 			unittest.AssertCount(t, &issues_model.PullRequest{}, pullNum+2)
 			pr2 = unittest.AssertExistsAndLoadBean(t, &issues_model.PullRequest{
 				HeadRepoID: repo.ID,
 				Index:      pr1.Index + 1,
 				Flow:       issues_model.PullRequestFlowAGit,
 			})
-			require.NotEmpty(t, pr2)
-
+			if !assert.NotEmpty(t, pr2) {
+				return
+			}
 			prMsg, err = doAPIGetPullRequest(*ctx, ctx.Username, ctx.Reponame, pr2.Index)(t)
-			require.NoError(t, err)
-
+			if !assert.NoError(t, err) {
+				return
+			}
 			assert.Equal(t, "user2/test/"+headBranch, pr2.HeadBranch)
 			assert.False(t, prMsg.HasMerged)
 		})
@@ -810,7 +820,9 @@ func doCreateAgitFlowPull(dstPath string, ctx *APITestContext, headBranch string
 
 		t.Run("AddCommit2", func(t *testing.T) {
 			err := os.WriteFile(path.Join(dstPath, "test_file"), []byte("## test content \n ## test content 2"), 0o666)
-			require.NoError(t, err)
+			if !assert.NoError(t, err) {
+				return
+			}
 
 			err = git.AddChanges(dstPath, true)
 			assert.NoError(t, err)
@@ -835,22 +847,26 @@ func doCreateAgitFlowPull(dstPath string, ctx *APITestContext, headBranch string
 
 		t.Run("Push2", func(t *testing.T) {
 			err := git.NewCommand(git.DefaultContext, "push", "origin", "HEAD:refs/for/master", "-o").AddDynamicArguments("topic=" + headBranch).Run(&git.RunOpts{Dir: dstPath})
-			require.NoError(t, err)
-
+			if !assert.NoError(t, err) {
+				return
+			}
 			unittest.AssertCount(t, &issues_model.PullRequest{}, pullNum+2)
 			prMsg, err := doAPIGetPullRequest(*ctx, ctx.Username, ctx.Reponame, pr1.Index)(t)
-			require.NoError(t, err)
-
+			if !assert.NoError(t, err) {
+				return
+			}
 			assert.False(t, prMsg.HasMerged)
 			assert.Equal(t, commit, prMsg.Head.Sha)
 
 			_, _, err = git.NewCommand(git.DefaultContext, "push", "origin").AddDynamicArguments("HEAD:refs/for/master/test/" + headBranch).RunStdString(&git.RunOpts{Dir: dstPath})
-			require.NoError(t, err)
-
+			if !assert.NoError(t, err) {
+				return
+			}
 			unittest.AssertCount(t, &issues_model.PullRequest{}, pullNum+2)
 			prMsg, err = doAPIGetPullRequest(*ctx, ctx.Username, ctx.Reponame, pr2.Index)(t)
-			require.NoError(t, err)
-
+			if !assert.NoError(t, err) {
+				return
+			}
 			assert.False(t, prMsg.HasMerged)
 			assert.Equal(t, commit, prMsg.Head.Sha)
 		})

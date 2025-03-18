@@ -49,15 +49,6 @@ const (
 	tplDeployKeys      templates.TplName = "repo/settings/deploy_keys"
 )
 
-func parseEveryoneAccessMode(permission string, allowed ...perm.AccessMode) perm.AccessMode {
-	// if site admin forces repositories to be private, then do not allow any other access mode,
-	// otherwise the "force private" setting would be bypassed
-	if setting.Repository.ForcePrivate {
-		return perm.AccessModeNone
-	}
-	return perm.ParseAccessMode(permission, allowed...)
-}
-
 // SettingsCtxData is a middleware that sets all the general context data for the
 // settings template.
 func SettingsCtxData(ctx *context.Context) {
@@ -456,9 +447,8 @@ func SettingsPost(ctx *context.Context) {
 
 		if form.EnableCode && !unit_model.TypeCode.UnitGlobalDisabled() {
 			units = append(units, repo_model.RepoUnit{
-				RepoID:             repo.ID,
-				Type:               unit_model.TypeCode,
-				EveryoneAccessMode: parseEveryoneAccessMode(form.DefaultCodeEveryoneAccess, perm.AccessModeNone, perm.AccessModeRead),
+				RepoID: repo.ID,
+				Type:   unit_model.TypeCode,
 			})
 		} else if !unit_model.TypeCode.UnitGlobalDisabled() {
 			deleteUnitTypes = append(deleteUnitTypes, unit_model.TypeCode)
@@ -484,7 +474,7 @@ func SettingsPost(ctx *context.Context) {
 				RepoID:             repo.ID,
 				Type:               unit_model.TypeWiki,
 				Config:             new(repo_model.UnitConfig),
-				EveryoneAccessMode: parseEveryoneAccessMode(form.DefaultWikiEveryoneAccess, perm.AccessModeNone, perm.AccessModeRead, perm.AccessModeWrite),
+				EveryoneAccessMode: perm.ParseAccessMode(form.DefaultWikiEveryoneAccess, perm.AccessModeNone, perm.AccessModeRead, perm.AccessModeWrite),
 			})
 			deleteUnitTypes = append(deleteUnitTypes, unit_model.TypeExternalWiki)
 		} else {
@@ -534,7 +524,6 @@ func SettingsPost(ctx *context.Context) {
 					AllowOnlyContributorsToTrackTime: form.AllowOnlyContributorsToTrackTime,
 					EnableDependencies:               form.EnableIssueDependencies,
 				},
-				EveryoneAccessMode: parseEveryoneAccessMode(form.DefaultIssuesEveryoneAccess, perm.AccessModeNone, perm.AccessModeRead),
 			})
 			deleteUnitTypes = append(deleteUnitTypes, unit_model.TypeExternalTracker)
 		} else {

@@ -109,7 +109,7 @@ func RemoveDependency(ctx *context.Context) {
 	}
 
 	// Dependency Type
-	depTypeStr := ctx.Req.PostFormValue("dependencyType")
+	depTypeStr := ctx.Req.PostForm.Get("dependencyType")
 
 	var depType issues_model.DependencyType
 

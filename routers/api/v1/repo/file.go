@@ -188,7 +188,7 @@ func GetRawFileOrLFS(ctx *context.APIContext) {
 	meta, err := git_model.GetLFSMetaObjectByOid(ctx, ctx.Repo.Repository.ID, pointer.Oid)
 
 	// If there isn't one, just serve the data directly
-	if errors.Is(err, git_model.ErrLFSObjectNotExist) {
+	if err == git_model.ErrLFSObjectNotExist {
 		// Handle caching for the blob SHA (not the LFS object OID)
 		if httpcache.HandleGenericETagTimeCache(ctx.Req, ctx.Resp, `"`+blob.ID.String()+`"`, lastModified) {
 			return
@@ -293,7 +293,14 @@ func GetArchive(ctx *context.APIContext) {
 }
 
 func archiveDownload(ctx *context.APIContext) {
-	aReq, err := archiver_service.NewRequest(ctx.Repo.Repository.ID, ctx.Repo.GitRepo, ctx.PathParam("*"))
+	uri := ctx.PathParam("*")
+	ext, tp, err := archiver_service.ParseFileName(uri)
+	if err != nil {
+		ctx.Error(http.StatusBadRequest, "ParseFileName", err)
+		return
+	}
+
+	aReq, err := archiver_service.NewRequest(ctx.Repo.Repository.ID, ctx.Repo.GitRepo, strings.TrimSuffix(uri, ext), tp)
 	if err != nil {
 		if errors.Is(err, archiver_service.ErrUnknownArchiveFormat{}) {
 			ctx.Error(http.StatusBadRequest, "unknown archive format", err)

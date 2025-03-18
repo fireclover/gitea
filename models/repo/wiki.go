@@ -5,7 +5,6 @@
 package repo
 
 import (
-	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -73,8 +72,8 @@ func (err ErrWikiInvalidFileName) Unwrap() error {
 }
 
 // WikiCloneLink returns clone URLs of repository wiki.
-func (repo *Repository) WikiCloneLink(ctx context.Context, doer *user_model.User) *CloneLink {
-	return repo.cloneLink(ctx, doer, repo.Name+".wiki")
+func (repo *Repository) WikiCloneLink() *CloneLink {
+	return repo.cloneLink(true)
 }
 
 // WikiPath returns wiki data path by given user and repository name.

@@ -13,7 +13,7 @@ export function initUserSettings() {
 
   initUserSettingsAvatarCropper();
 
-  const usernameInput = document.querySelector<HTMLInputElement>('#username');
+  const usernameInput = document.querySelector('#username');
   if (!usernameInput) return;
   usernameInput.addEventListener('input', function () {
     const prompt = document.querySelector('#name-change-prompt');

@@ -4,6 +4,7 @@
 package context
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"io"
@@ -24,7 +25,8 @@ type BaseContextKeyType struct{}
 var BaseContextKey BaseContextKeyType
 
 type Base struct {
-	reqctx.RequestContext
+	context.Context
+	reqctx.RequestDataStore
 
 	Resp ResponseWriter
 	Req  *http.Request
@@ -170,19 +172,19 @@ func (b *Base) TrN(cnt any, key1, keyN string, args ...any) template.HTML {
 }
 
 func NewBaseContext(resp http.ResponseWriter, req *http.Request) *Base {
-	reqCtx := reqctx.FromContext(req.Context())
+	ds := reqctx.GetRequestDataStore(req.Context())
 	b := &Base{
-		RequestContext: reqCtx,
-
-		Req:    req,
-		Resp:   WrapResponseWriter(resp),
-		Locale: middleware.Locale(resp, req),
-		Data:   reqCtx.GetData(),
+		Context:          req.Context(),
+		RequestDataStore: ds,
+		Req:              req,
+		Resp:             WrapResponseWriter(resp),
+		Locale:           middleware.Locale(resp, req),
+		Data:             ds.GetData(),
 	}
 	b.Req = b.Req.WithContext(b)
-	reqCtx.SetContextValue(BaseContextKey, b)
-	reqCtx.SetContextValue(translation.ContextKey, b.Locale)
-	reqCtx.SetContextValue(httplib.RequestContextKey, b.Req)
+	ds.SetContextValue(BaseContextKey, b)
+	ds.SetContextValue(translation.ContextKey, b.Locale)
+	ds.SetContextValue(httplib.RequestContextKey, b.Req)
 	return b
 }
 

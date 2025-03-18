@@ -3,11 +3,7 @@
 
 package util
 
-import (
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-)
+import "testing"
 
 func TestShellEscape(t *testing.T) {
 	tests := []struct {
@@ -87,7 +83,9 @@ func TestShellEscape(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, ShellEscape(tt.toEscape))
+			if got := ShellEscape(tt.toEscape); got != tt.want {
+				t.Errorf("ShellEscape(%q):\nGot:    %s\nWanted: %s", tt.toEscape, got, tt.want)
+			}
 		})
 	}
 }

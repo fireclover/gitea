@@ -68,7 +68,7 @@ function toggleActionForm(show: boolean) {
   mergeMessageFieldValue.value = mergeStyleDetail.value.mergeMessageFieldText;
 }
 
-function switchMergeStyle(name: string, autoMerge = false) {
+function switchMergeStyle(name, autoMerge = false) {
   mergeStyle.value = name;
   autoMergeWhenSucceed.value = autoMerge;
 }
@@ -129,7 +129,7 @@ function clearMergeMessage() {
         {{ mergeForm.textCancel }}
       </button>
 
-      <div class="ui checkbox tw-ml-1" v-if="mergeForm.isPullBranchDeletable">
+      <div class="ui checkbox tw-ml-1" v-if="mergeForm.isPullBranchDeletable && !autoMergeWhenSucceed">
         <input name="delete_branch_after_merge" type="checkbox" v-model="deleteBranchAfterMerge" id="delete-branch-after-merge">
         <label for="delete-branch-after-merge">{{ mergeForm.textDeleteBranch }}</label>
       </div>

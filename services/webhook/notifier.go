@@ -763,10 +763,12 @@ func (m *webhookNotifier) PullRequestReviewRequest(ctx context.Context, doer *us
 func (m *webhookNotifier) CreateRef(ctx context.Context, pusher *user_model.User, repo *repo_model.Repository, refFullName git.RefName, refID string) {
 	apiPusher := convert.ToUser(ctx, pusher, nil)
 	apiRepo := convert.ToRepo(ctx, repo, access_model.Permission{AccessMode: perm.AccessModeNone})
+	refName := refFullName.ShortName()
+
 	if err := PrepareWebhooks(ctx, EventSource{Repository: repo}, webhook_module.HookEventCreate, &api.CreatePayload{
-		Ref:     refFullName.ShortName(), // FIXME: should it be a full ref name? But it will break the existing webhooks?
+		Ref:     refName, // FIXME: should it be a full ref name?
 		Sha:     refID,
-		RefType: string(refFullName.RefType()),
+		RefType: refFullName.RefType(),
 		Repo:    apiRepo,
 		Sender:  apiPusher,
 	}); err != nil {
@@ -798,9 +800,11 @@ func (m *webhookNotifier) PullRequestSynchronized(ctx context.Context, doer *use
 func (m *webhookNotifier) DeleteRef(ctx context.Context, pusher *user_model.User, repo *repo_model.Repository, refFullName git.RefName) {
 	apiPusher := convert.ToUser(ctx, pusher, nil)
 	apiRepo := convert.ToRepo(ctx, repo, access_model.Permission{AccessMode: perm.AccessModeOwner})
+	refName := refFullName.ShortName()
+
 	if err := PrepareWebhooks(ctx, EventSource{Repository: repo}, webhook_module.HookEventDelete, &api.DeletePayload{
-		Ref:        refFullName.ShortName(), // FIXME: should it be a full ref name? But it will break the existing webhooks?
-		RefType:    string(refFullName.RefType()),
+		Ref:        refName, // FIXME: should it be a full ref name?
+		RefType:    refFullName.RefType(),
 		PusherType: api.PusherTypeUser,
 		Repo:       apiRepo,
 		Sender:     apiPusher,

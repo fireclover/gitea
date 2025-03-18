@@ -8,9 +8,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func getWhoamiOutput() (string, error) {
@@ -23,19 +20,24 @@ func getWhoamiOutput() (string, error) {
 
 func TestCurrentUsername(t *testing.T) {
 	user := CurrentUsername()
-	require.NotEmpty(t, user)
-
+	if len(user) == 0 {
+		t.Errorf("expected non-empty user, got: %s", user)
+	}
 	// Windows whoami is weird, so just skip remaining tests
 	if runtime.GOOS == "windows" {
 		t.Skip("skipped test because of weird whoami on Windows")
 	}
 	whoami, err := getWhoamiOutput()
-	require.NoError(t, err)
-
+	if err != nil {
+		t.Errorf("failed to run whoami to test current user: %f", err)
+	}
 	user = CurrentUsername()
-	assert.Equal(t, whoami, user)
-
+	if user != whoami {
+		t.Errorf("expected %s as user, got: %s", whoami, user)
+	}
 	t.Setenv("USER", "spoofed")
 	user = CurrentUsername()
-	assert.Equal(t, whoami, user)
+	if user != whoami {
+		t.Errorf("expected %s as user, got: %s", whoami, user)
+	}
 }

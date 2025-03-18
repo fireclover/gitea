@@ -3,10 +3,6 @@
 
 package git
 
-type SubmoduleWebLink struct {
-	RepoWebLink, CommitWebLink string
-}
-
 // GetSubModules get all the submodules of current revision git tree
 func (c *Commit) GetSubModules() (*ObjectCache[*SubModule], error) {
 	if c.submoduleCache != nil {

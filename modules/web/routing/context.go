@@ -12,18 +12,16 @@ type contextKeyType struct{}
 
 var contextKey contextKeyType
 
-// RecordFuncInfo records a func info into context
-func RecordFuncInfo(ctx context.Context, funcInfo *FuncInfo) (end func()) {
-	// TODO: reqCtx := reqctx.FromContext(ctx), add trace support
-	end = func() {}
-
-	// save the func info into the context record
-	if record, ok := ctx.Value(contextKey).(*requestRecord); ok {
-		record.lock.Lock()
-		record.funcInfo = funcInfo
-		record.lock.Unlock()
+// UpdateFuncInfo updates a context's func info
+func UpdateFuncInfo(ctx context.Context, funcInfo *FuncInfo) {
+	record, ok := ctx.Value(contextKey).(*requestRecord)
+	if !ok {
+		return
 	}
-	return end
+
+	record.lock.Lock()
+	record.funcInfo = funcInfo
+	record.lock.Unlock()
 }
 
 // MarkLongPolling marks the request is a long-polling request, and the logger may output different message for it

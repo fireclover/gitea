@@ -1,5 +1,4 @@
 <script lang="ts">
-import {defineComponent, type PropType} from 'vue';
 import {SvgIcon} from '../svg.ts';
 import dayjs from 'dayjs';
 import {
@@ -57,11 +56,11 @@ Chart.register(
   customEventListener,
 );
 
-export default defineComponent({
+export default {
   components: {ChartLine, SvgIcon},
   props: {
     locale: {
-      type: Object as PropType<Record<string, any>>,
+      type: Object,
       required: true,
     },
     repoLink: {
@@ -89,7 +88,7 @@ export default defineComponent({
     this.fetchGraphData();
 
     fomanticQuery('#repo-contributors').dropdown({
-      onChange: (val: string) => {
+      onChange: (val) => {
         this.xAxisMin = this.xAxisStart;
         this.xAxisMax = this.xAxisEnd;
         this.type = val;
@@ -321,7 +320,7 @@ export default defineComponent({
       };
     },
   },
-});
+};
 </script>
 <template>
   <div>

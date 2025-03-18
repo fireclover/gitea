@@ -4,7 +4,6 @@
 package conan
 
 import (
-	"errors"
 	"net/http"
 	"strings"
 
@@ -77,7 +76,7 @@ func searchPackages(ctx *context.Context, searchAllRevisions bool) {
 	if !searchAllRevisions && rref.Revision == "" {
 		lastRevision, err := conan_model.GetLastRecipeRevision(ctx, ctx.Package.Owner.ID, rref)
 		if err != nil {
-			if errors.Is(err, conan_model.ErrRecipeReferenceNotExist) {
+			if err == conan_model.ErrRecipeReferenceNotExist {
 				apiError(ctx, http.StatusNotFound, err)
 			} else {
 				apiError(ctx, http.StatusInternalServerError, err)
@@ -88,7 +87,7 @@ func searchPackages(ctx *context.Context, searchAllRevisions bool) {
 	} else {
 		has, err := conan_model.RecipeExists(ctx, ctx.Package.Owner.ID, rref)
 		if err != nil {
-			if errors.Is(err, conan_model.ErrRecipeReferenceNotExist) {
+			if err == conan_model.ErrRecipeReferenceNotExist {
 				apiError(ctx, http.StatusNotFound, err)
 			} else {
 				apiError(ctx, http.StatusInternalServerError, err)
@@ -120,7 +119,7 @@ func searchPackages(ctx *context.Context, searchAllRevisions bool) {
 		}
 		packageReferences, err := conan_model.GetPackageReferences(ctx, ctx.Package.Owner.ID, currentRef)
 		if err != nil {
-			if errors.Is(err, conan_model.ErrRecipeReferenceNotExist) {
+			if err == conan_model.ErrRecipeReferenceNotExist {
 				apiError(ctx, http.StatusNotFound, err)
 			} else {
 				apiError(ctx, http.StatusInternalServerError, err)
@@ -134,7 +133,7 @@ func searchPackages(ctx *context.Context, searchAllRevisions bool) {
 			pref, _ := conan_module.NewPackageReference(currentRef, packageReference.Value, "")
 			lastPackageRevision, err := conan_model.GetLastPackageRevision(ctx, ctx.Package.Owner.ID, pref)
 			if err != nil {
-				if errors.Is(err, conan_model.ErrPackageReferenceNotExist) {
+				if err == conan_model.ErrPackageReferenceNotExist {
 					apiError(ctx, http.StatusNotFound, err)
 				} else {
 					apiError(ctx, http.StatusInternalServerError, err)
@@ -144,7 +143,7 @@ func searchPackages(ctx *context.Context, searchAllRevisions bool) {
 			pref = pref.WithRevision(lastPackageRevision.Value)
 			infoRaw, err := conan_model.GetPackageInfo(ctx, ctx.Package.Owner.ID, pref)
 			if err != nil {
-				if errors.Is(err, conan_model.ErrPackageReferenceNotExist) {
+				if err == conan_model.ErrPackageReferenceNotExist {
 					apiError(ctx, http.StatusNotFound, err)
 				} else {
 					apiError(ctx, http.StatusInternalServerError, err)

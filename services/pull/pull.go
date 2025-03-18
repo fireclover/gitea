@@ -6,7 +6,6 @@ package pull
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -266,7 +265,6 @@ func ChangeTargetBranch(ctx context.Context, pr *issues_model.PullRequest, doer 
 			ID:     pr.Issue.ID,
 			RepoID: pr.Issue.RepoID,
 			Index:  pr.Issue.Index,
-			IsPull: true,
 		}
 	}
 
@@ -637,9 +635,33 @@ func UpdateRef(ctx context.Context, pr *issues_model.PullRequest) (err error) {
 	return err
 }
 
-// retargetBranchPulls change target branch for all pull requests whose base branch is the branch
+type errlist []error
+
+func (errs errlist) Error() string {
+	if len(errs) > 0 {
+		var buf strings.Builder
+		for i, err := range errs {
+			if i > 0 {
+				buf.WriteString(", ")
+			}
+			buf.WriteString(err.Error())
+		}
+		return buf.String()
+	}
+	return ""
+}
+
+// RetargetChildrenOnMerge retarget children pull requests on merge if possible
+func RetargetChildrenOnMerge(ctx context.Context, doer *user_model.User, pr *issues_model.PullRequest) error {
+	if setting.Repository.PullRequest.RetargetChildrenOnMerge && pr.BaseRepoID == pr.HeadRepoID {
+		return RetargetBranchPulls(ctx, doer, pr.HeadRepoID, pr.HeadBranch, pr.BaseBranch)
+	}
+	return nil
+}
+
+// RetargetBranchPulls change target branch for all pull requests whose base branch is the branch
 // Both branch and targetBranch must be in the same repo (for security reasons)
-func retargetBranchPulls(ctx context.Context, doer *user_model.User, repoID int64, branch, targetBranch string) error {
+func RetargetBranchPulls(ctx context.Context, doer *user_model.User, repoID int64, branch, targetBranch string) error {
 	prs, err := issues_model.GetUnmergedPullRequestsByBaseInfo(ctx, repoID, branch)
 	if err != nil {
 		return err
@@ -649,7 +671,7 @@ func retargetBranchPulls(ctx context.Context, doer *user_model.User, repoID int6
 		return err
 	}
 
-	var errs []error
+	var errs errlist
 	for _, pr := range prs {
 		if err = pr.Issue.LoadRepo(ctx); err != nil {
 			errs = append(errs, err)
@@ -659,75 +681,40 @@ func retargetBranchPulls(ctx context.Context, doer *user_model.User, repoID int6
 			errs = append(errs, err)
 		}
 	}
-	return errors.Join(errs...)
+
+	if len(errs) > 0 {
+		return errs
+	}
+	return nil
 }
 
-// AdjustPullsCausedByBranchDeleted close all the pull requests who's head branch is the branch
-// Or Close all the plls who's base branch is the branch if setting.Repository.PullRequest.RetargetChildrenOnMerge is false.
-// If it's true, Retarget all these pulls to the default branch.
-func AdjustPullsCausedByBranchDeleted(ctx context.Context, doer *user_model.User, repo *repo_model.Repository, branch string) error {
-	// branch as head branch
-	prs, err := issues_model.GetUnmergedPullRequestsByHeadInfo(ctx, repo.ID, branch)
+// CloseBranchPulls close all the pull requests who's head branch is the branch
+func CloseBranchPulls(ctx context.Context, doer *user_model.User, repoID int64, branch string) error {
+	prs, err := issues_model.GetUnmergedPullRequestsByHeadInfo(ctx, repoID, branch)
 	if err != nil {
 		return err
 	}
 
-	if err := issues_model.PullRequestList(prs).LoadAttributes(ctx); err != nil {
-		return err
-	}
-	issues_model.PullRequestList(prs).SetHeadRepo(repo)
-	if err := issues_model.PullRequestList(prs).LoadRepositories(ctx); err != nil {
-		return err
-	}
-
-	var errs []error
-	for _, pr := range prs {
-		if err = issue_service.CloseIssue(ctx, pr.Issue, doer, ""); err != nil && !issues_model.IsErrIssueIsClosed(err) && !issues_model.IsErrDependenciesLeft(err) {
-			errs = append(errs, err)
-		}
-		if err == nil {
-			if err := issues_model.AddDeletePRBranchComment(ctx, doer, pr.BaseRepo, pr.Issue.ID, pr.HeadBranch); err != nil {
-				log.Error("AddDeletePRBranchComment: %v", err)
-				errs = append(errs, err)
-			}
-		}
-	}
-
-	if setting.Repository.PullRequest.RetargetChildrenOnMerge {
-		if err := retargetBranchPulls(ctx, doer, repo.ID, branch, repo.DefaultBranch); err != nil {
-			log.Error("retargetBranchPulls failed: %v", err)
-			errs = append(errs, err)
-		}
-		return errors.Join(errs...)
-	}
-
-	// branch as base branch
-	prs, err = issues_model.GetUnmergedPullRequestsByBaseInfo(ctx, repo.ID, branch)
+	prs2, err := issues_model.GetUnmergedPullRequestsByBaseInfo(ctx, repoID, branch)
 	if err != nil {
 		return err
 	}
 
+	prs = append(prs, prs2...)
 	if err := issues_model.PullRequestList(prs).LoadAttributes(ctx); err != nil {
 		return err
 	}
-	issues_model.PullRequestList(prs).SetBaseRepo(repo)
-	if err := issues_model.PullRequestList(prs).LoadRepositories(ctx); err != nil {
-		return err
-	}
 
-	errs = nil
+	var errs errlist
 	for _, pr := range prs {
-		if err = issues_model.AddDeletePRBranchComment(ctx, doer, pr.BaseRepo, pr.Issue.ID, pr.BaseBranch); err != nil {
-			log.Error("AddDeletePRBranchComment: %v", err)
+		if err = issue_service.CloseIssue(ctx, pr.Issue, doer, ""); err != nil && !issues_model.IsErrPullWasClosed(err) && !issues_model.IsErrDependenciesLeft(err) {
 			errs = append(errs, err)
 		}
-		if err == nil {
-			if err = issue_service.CloseIssue(ctx, pr.Issue, doer, ""); err != nil && !issues_model.IsErrIssueIsClosed(err) && !issues_model.IsErrDependenciesLeft(err) {
-				errs = append(errs, err)
-			}
-		}
 	}
-	return errors.Join(errs...)
+	if len(errs) > 0 {
+		return errs
+	}
+	return nil
 }
 
 // CloseRepoBranchesPulls close all pull requests which head branches are in the given repository, but only whose base repo is not in the given repository
@@ -737,7 +724,7 @@ func CloseRepoBranchesPulls(ctx context.Context, doer *user_model.User, repo *re
 		return err
 	}
 
-	var errs []error
+	var errs errlist
 	for _, branch := range branches {
 		prs, err := issues_model.GetUnmergedPullRequestsByHeadInfo(ctx, repo.ID, branch.Name)
 		if err != nil {
@@ -754,13 +741,16 @@ func CloseRepoBranchesPulls(ctx context.Context, doer *user_model.User, repo *re
 			if pr.BaseRepoID == repo.ID {
 				continue
 			}
-			if err = issue_service.CloseIssue(ctx, pr.Issue, doer, ""); err != nil && !issues_model.IsErrIssueIsClosed(err) {
+			if err = issue_service.CloseIssue(ctx, pr.Issue, doer, ""); err != nil && !issues_model.IsErrPullWasClosed(err) {
 				errs = append(errs, err)
 			}
 		}
 	}
 
-	return errors.Join(errs...)
+	if len(errs) > 0 {
+		return errs
+	}
+	return nil
 }
 
 var commitMessageTrailersPattern = regexp.MustCompile(`(?:^|\n\n)(?:[\w-]+[ \t]*:[^\n]+\n*(?:[ \t]+[^\n]+\n*)*)+$`)

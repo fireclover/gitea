@@ -15,7 +15,6 @@ import (
 	_ "code.gitea.io/gitea/cmd" // for TestPrimaryKeys
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestDumpDatabase(t *testing.T) {
@@ -63,7 +62,9 @@ func TestPrimaryKeys(t *testing.T) {
 	// Import "code.gitea.io/gitea/cmd" to make sure each db.RegisterModel in init functions has been called.
 
 	beans, err := db.NamesToBean()
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	whitelist := map[string]string{
 		"the_table_name_to_skip_checking": "Write a note here to explain why",
@@ -78,6 +79,8 @@ func TestPrimaryKeys(t *testing.T) {
 			t.Logf("ignore %q because %q", table.Name, why)
 			continue
 		}
-		assert.NotEmpty(t, table.PrimaryKeys, "table %q has no primary key", table.Name)
+		if len(table.PrimaryKeys) == 0 {
+			t.Errorf("table %q has no primary key", table.Name)
+		}
 	}
 }

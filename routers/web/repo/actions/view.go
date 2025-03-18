@@ -812,8 +812,13 @@ func Run(ctx *context_module.Context) {
 		return
 	}
 
-	// get workflow entry from runTargetCommit
-	entries, err := actions.ListWorkflows(runTargetCommit)
+	// get workflow entry from default branch commit
+	defaultBranchCommit, err := ctx.Repo.GitRepo.GetBranchCommit(ctx.Repo.Repository.DefaultBranch)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err.Error())
+		return
+	}
+	entries, err := actions.ListWorkflows(defaultBranchCommit)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err.Error())
 		return
@@ -850,7 +855,7 @@ func Run(ctx *context_module.Context) {
 	inputs := make(map[string]any)
 	if workflowDispatch := workflow.WorkflowDispatchConfig(); workflowDispatch != nil {
 		for name, config := range workflowDispatch.Inputs {
-			value := ctx.Req.PostFormValue(name)
+			value := ctx.Req.PostForm.Get(name)
 			if config.Type == "boolean" {
 				// https://www.w3.org/TR/html401/interact/forms.html
 				// https://stackoverflow.com/questions/11424037/do-checkbox-inputs-only-post-data-if-theyre-checked

@@ -16,7 +16,6 @@ import (
 	"code.gitea.io/gitea/modules/structs"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestUser_IsOwnedBy(t *testing.T) {
@@ -181,8 +180,9 @@ func TestRestrictedUserOrgMembers(t *testing.T) {
 		ID:           29,
 		IsRestricted: true,
 	})
-	// ensure fixtures return restricted user
-	require.True(t, restrictedUser.IsRestricted)
+	if !assert.True(t, restrictedUser.IsRestricted) {
+		return // ensure fixtures return restricted user
+	}
 
 	testCases := []struct {
 		name         string

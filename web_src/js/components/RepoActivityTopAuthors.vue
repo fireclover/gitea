@@ -8,15 +8,13 @@ const colors = ref({
   textAltColor: 'white',
 });
 
-type ActivityAuthorData = {
-  avatar_link: string;
-  commits: number;
-  home_link: string;
-  login: string;
-  name: string;
-}
-
-const activityTopAuthors: Array<ActivityAuthorData> = window.config.pageData.repoActivityTopAuthors || [];
+// possible keys:
+// * avatar_link: (...)
+// * commits: (...)
+// * home_link: (...)
+// * login: (...)
+// * name: (...)
+const activityTopAuthors = window.config.pageData.repoActivityTopAuthors || [];
 
 const graphPoints = computed(() => {
   return activityTopAuthors.map((item) => {
@@ -28,7 +26,7 @@ const graphPoints = computed(() => {
 });
 
 const graphAuthors = computed(() => {
-  return activityTopAuthors.map((item, idx: number) => {
+  return activityTopAuthors.map((item, idx) => {
     return {
       position: idx + 1,
       ...item,

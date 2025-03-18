@@ -360,6 +360,7 @@ type DiffFile struct {
 	IsLFSFile                 bool
 	IsRenamed                 bool
 	IsAmbiguous               bool
+	IsSubmodule               bool
 	Sections                  []*DiffSection
 	IsIncomplete              bool
 	IsIncompleteLineTooLong   bool
@@ -371,9 +372,6 @@ type DiffFile struct {
 	Language                  string
 	Mode                      string
 	OldMode                   string
-
-	IsSubmodule       bool // if IsSubmodule==true, then there must be a SubmoduleDiffInfo
-	SubmoduleDiffInfo *SubmoduleDiffInfo
 }
 
 // GetType returns type of diff file.
@@ -611,8 +609,9 @@ parsingLoop:
 				if strings.HasPrefix(line, "new mode ") {
 					curFile.Mode = prepareValue(line, "new mode ")
 				}
+
 				if strings.HasSuffix(line, " 160000\n") {
-					curFile.IsSubmodule, curFile.SubmoduleDiffInfo = true, &SubmoduleDiffInfo{}
+					curFile.IsSubmodule = true
 				}
 			case strings.HasPrefix(line, "rename from "):
 				curFile.IsRenamed = true
@@ -647,17 +646,17 @@ parsingLoop:
 					curFile.Mode = prepareValue(line, "new file mode ")
 				}
 				if strings.HasSuffix(line, " 160000\n") {
-					curFile.IsSubmodule, curFile.SubmoduleDiffInfo = true, &SubmoduleDiffInfo{}
+					curFile.IsSubmodule = true
 				}
 			case strings.HasPrefix(line, "deleted"):
 				curFile.Type = DiffFileDel
 				curFile.IsDeleted = true
 				if strings.HasSuffix(line, " 160000\n") {
-					curFile.IsSubmodule, curFile.SubmoduleDiffInfo = true, &SubmoduleDiffInfo{}
+					curFile.IsSubmodule = true
 				}
 			case strings.HasPrefix(line, "index"):
 				if strings.HasSuffix(line, " 160000\n") {
-					curFile.IsSubmodule, curFile.SubmoduleDiffInfo = true, &SubmoduleDiffInfo{}
+					curFile.IsSubmodule = true
 				}
 			case strings.HasPrefix(line, "similarity index 100%"):
 				curFile.Type = DiffFileRename
@@ -916,13 +915,6 @@ func parseHunks(ctx context.Context, curFile *DiffFile, maxLines, maxLineCharact
 				}
 			}
 			curSection.Lines = append(curSection.Lines, diffLine)
-
-			// Parse submodule additions
-			if curFile.SubmoduleDiffInfo != nil {
-				if ref, found := bytes.CutPrefix(lineBytes, []byte("+Subproject commit ")); found {
-					curFile.SubmoduleDiffInfo.NewRefID = string(bytes.TrimSpace(ref))
-				}
-			}
 		case '-':
 			curFileLinesCount++
 			curFile.Deletion++
@@ -944,13 +936,6 @@ func parseHunks(ctx context.Context, curFile *DiffFile, maxLines, maxLineCharact
 				lastLeftIdx = len(curSection.Lines)
 			}
 			curSection.Lines = append(curSection.Lines, diffLine)
-
-			// Parse submodule deletion
-			if curFile.SubmoduleDiffInfo != nil {
-				if ref, found := bytes.CutPrefix(lineBytes, []byte("-Subproject commit ")); found {
-					curFile.SubmoduleDiffInfo.PreviousRefID = string(bytes.TrimSpace(ref))
-				}
-			}
 		case ' ':
 			curFileLinesCount++
 			if maxLines > -1 && curFileLinesCount >= maxLines {
@@ -1136,10 +1121,7 @@ func GetDiff(ctx context.Context, gitRepo *git.Repository, opts *DiffOptions, fi
 	} else {
 		actualBeforeCommitID := opts.BeforeCommitID
 		if len(actualBeforeCommitID) == 0 {
-			parentCommit, err := commit.Parent(0)
-			if err != nil {
-				return nil, err
-			}
+			parentCommit, _ := commit.Parent(0)
 			actualBeforeCommitID = parentCommit.ID.String()
 		}
 
@@ -1148,6 +1130,7 @@ func GetDiff(ctx context.Context, gitRepo *git.Repository, opts *DiffOptions, fi
 			AddDynamicArguments(actualBeforeCommitID, opts.AfterCommitID)
 		opts.BeforeCommitID = actualBeforeCommitID
 
+		var err error
 		beforeCommit, err = gitRepo.GetCommit(opts.BeforeCommitID)
 		if err != nil {
 			return nil, err
@@ -1210,11 +1193,6 @@ func GetDiff(ctx context.Context, gitRepo *git.Repository, opts *DiffOptions, fi
 					diffFile.Language = language.Value()
 				}
 			}
-		}
-
-		// Populate Submodule URLs
-		if diffFile.SubmoduleDiffInfo != nil {
-			diffFile.SubmoduleDiffInfo.PopulateURL(diffFile, beforeCommit, commit)
 		}
 
 		if !isVendored.Has() {

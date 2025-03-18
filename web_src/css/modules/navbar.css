@@ -48,8 +48,7 @@
     align-items: stretch;
   }
   /* hide all items */
-  #navbar .navbar-left > .item,
-  #navbar .navbar-right > .item {
+  #navbar .item {
     display: none;
   }
   #navbar #navbar-logo {

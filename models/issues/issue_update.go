@@ -28,40 +28,38 @@ import (
 
 // UpdateIssueCols updates cols of issue
 func UpdateIssueCols(ctx context.Context, issue *Issue, cols ...string) error {
-	_, err := db.GetEngine(ctx).ID(issue.ID).Cols(cols...).Update(issue)
-	return err
+	if _, err := db.GetEngine(ctx).ID(issue.ID).Cols(cols...).Update(issue); err != nil {
+		return err
+	}
+	return nil
 }
 
-// ErrIssueIsClosed is used when close a closed issue
-type ErrIssueIsClosed struct {
-	ID     int64
-	RepoID int64
-	Index  int64
-	IsPull bool
-}
+func ChangeIssueStatus(ctx context.Context, issue *Issue, doer *user_model.User, isClosed, isMergePull bool) (*Comment, error) {
+	// Reload the issue
+	currentIssue, err := GetIssueByID(ctx, issue.ID)
+	if err != nil {
+		return nil, err
+	}
 
-// IsErrIssueIsClosed checks if an error is a ErrIssueIsClosed.
-func IsErrIssueIsClosed(err error) bool {
-	_, ok := err.(ErrIssueIsClosed)
-	return ok
-}
-
-func (err ErrIssueIsClosed) Error() string {
-	return fmt.Sprintf("%s [id: %d, repo_id: %d, index: %d] is already closed", util.Iif(err.IsPull, "Pull Request", "Issue"), err.ID, err.RepoID, err.Index)
-}
-
-func SetIssueAsClosed(ctx context.Context, issue *Issue, doer *user_model.User, isMergePull bool) (*Comment, error) {
-	if issue.IsClosed {
-		return nil, ErrIssueIsClosed{
-			ID:     issue.ID,
-			RepoID: issue.RepoID,
-			Index:  issue.Index,
-			IsPull: issue.IsPull,
+	// Nothing should be performed if current status is same as target status
+	if currentIssue.IsClosed == isClosed {
+		if !issue.IsPull {
+			return nil, ErrIssueWasClosed{
+				ID: issue.ID,
+			}
+		}
+		return nil, ErrPullWasClosed{
+			ID: issue.ID,
 		}
 	}
 
+	issue.IsClosed = isClosed
+	return doChangeIssueStatus(ctx, issue, doer, isMergePull)
+}
+
+func doChangeIssueStatus(ctx context.Context, issue *Issue, doer *user_model.User, isMergePull bool) (*Comment, error) {
 	// Check for open dependencies
-	if issue.Repo.IsDependenciesEnabled(ctx) {
+	if issue.IsClosed && issue.Repo.IsDependenciesEnabled(ctx) {
 		// only check if dependencies are enabled and we're about to close an issue, otherwise reopening an issue would fail when there are unsatisfied dependencies
 		noDeps, err := IssueNoDependenciesLeft(ctx, issue)
 		if err != nil {
@@ -73,63 +71,16 @@ func SetIssueAsClosed(ctx context.Context, issue *Issue, doer *user_model.User, 
 		}
 	}
 
-	issue.IsClosed = true
-	issue.ClosedUnix = timeutil.TimeStampNow()
+	if issue.IsClosed {
+		issue.ClosedUnix = timeutil.TimeStampNow()
+	} else {
+		issue.ClosedUnix = 0
+	}
 
-	if cnt, err := db.GetEngine(ctx).ID(issue.ID).Cols("is_closed", "closed_unix").
-		Where("is_closed = ?", false).
-		Update(issue); err != nil {
+	if err := UpdateIssueCols(ctx, issue, "is_closed", "closed_unix"); err != nil {
 		return nil, err
-	} else if cnt != 1 {
-		return nil, ErrIssueAlreadyChanged
 	}
 
-	return updateIssueNumbers(ctx, issue, doer, util.Iif(isMergePull, CommentTypeMergePull, CommentTypeClose))
-}
-
-// ErrIssueIsOpen is used when reopen an opened issue
-type ErrIssueIsOpen struct {
-	ID     int64
-	RepoID int64
-	IsPull bool
-	Index  int64
-}
-
-// IsErrIssueIsOpen checks if an error is a ErrIssueIsOpen.
-func IsErrIssueIsOpen(err error) bool {
-	_, ok := err.(ErrIssueIsOpen)
-	return ok
-}
-
-func (err ErrIssueIsOpen) Error() string {
-	return fmt.Sprintf("%s [id: %d, repo_id: %d, index: %d] is already open", util.Iif(err.IsPull, "Pull Request", "Issue"), err.ID, err.RepoID, err.Index)
-}
-
-func setIssueAsReopen(ctx context.Context, issue *Issue, doer *user_model.User) (*Comment, error) {
-	if !issue.IsClosed {
-		return nil, ErrIssueIsOpen{
-			ID:     issue.ID,
-			RepoID: issue.RepoID,
-			Index:  issue.Index,
-			IsPull: issue.IsPull,
-		}
-	}
-
-	issue.IsClosed = false
-	issue.ClosedUnix = 0
-
-	if cnt, err := db.GetEngine(ctx).ID(issue.ID).Cols("is_closed", "closed_unix").
-		Where("is_closed = ?", true).
-		Update(issue); err != nil {
-		return nil, err
-	} else if cnt != 1 {
-		return nil, ErrIssueAlreadyChanged
-	}
-
-	return updateIssueNumbers(ctx, issue, doer, CommentTypeReopen)
-}
-
-func updateIssueNumbers(ctx context.Context, issue *Issue, doer *user_model.User, cmtType CommentType) (*Comment, error) {
 	// Update issue count of labels
 	if err := issue.LoadLabels(ctx); err != nil {
 		return nil, err
@@ -150,6 +101,14 @@ func updateIssueNumbers(ctx context.Context, issue *Issue, doer *user_model.User
 	// update repository's issue closed number
 	if err := repo_model.UpdateRepoIssueNumbers(ctx, issue.RepoID, issue.IsPull, true); err != nil {
 		return nil, err
+	}
+
+	// New action comment
+	cmtType := CommentTypeClose
+	if !issue.IsClosed {
+		cmtType = CommentTypeReopen
+	} else if isMergePull {
+		cmtType = CommentTypeMergePull
 	}
 
 	return CreateComment(ctx, &CreateCommentOptions{
@@ -175,7 +134,7 @@ func CloseIssue(ctx context.Context, issue *Issue, doer *user_model.User) (*Comm
 	}
 	defer committer.Close()
 
-	comment, err := SetIssueAsClosed(ctx, issue, doer, false)
+	comment, err := ChangeIssueStatus(ctx, issue, doer, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +159,7 @@ func ReopenIssue(ctx context.Context, issue *Issue, doer *user_model.User) (*Com
 	}
 	defer committer.Close()
 
-	comment, err := setIssueAsReopen(ctx, issue, doer)
+	comment, err := ChangeIssueStatus(ctx, issue, doer, false, false)
 	if err != nil {
 		return nil, err
 	}

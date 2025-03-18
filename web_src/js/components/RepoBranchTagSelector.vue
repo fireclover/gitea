@@ -1,5 +1,5 @@
 <script lang="ts">
-import {defineComponent, nextTick} from 'vue';
+import {nextTick} from 'vue';
 import {SvgIcon} from '../svg.ts';
 import {showErrorToast} from '../modules/toast.ts';
 import {GET} from '../modules/fetch.ts';
@@ -17,10 +17,50 @@ type SelectedTab = 'branches' | 'tags';
 
 type TabLoadingStates = Record<SelectedTab, '' | 'loading' | 'done'>
 
-export default defineComponent({
+const sfc = {
   components: {SvgIcon},
   props: {
     elRoot: HTMLElement,
+  },
+  computed: {
+    searchFieldPlaceholder() {
+      return this.selectedTab === 'branches' ? this.textFilterBranch : this.textFilterTag;
+    },
+    filteredItems(): ListItem[] {
+      const searchTermLower = this.searchTerm.toLowerCase();
+      const items = this.allItems.filter((item: ListItem) => {
+        const typeMatched = (this.selectedTab === 'branches' && item.refType === 'branch') || (this.selectedTab === 'tags' && item.refType === 'tag');
+        if (!typeMatched) return false;
+        if (!this.searchTerm) return true; // match all
+        return item.refShortName.toLowerCase().includes(searchTermLower);
+      });
+
+      // TODO: fix this anti-pattern: side-effects-in-computed-properties
+      this.activeItemIndex = !items.length && this.showCreateNewRef ? 0 : -1;
+      return items;
+    },
+    showNoResults() {
+      if (this.tabLoadingStates[this.selectedTab] !== 'done') return false;
+      return !this.filteredItems.length && !this.showCreateNewRef;
+    },
+    showCreateNewRef() {
+      if (!this.allowCreateNewRef || !this.searchTerm) {
+        return false;
+      }
+      return !this.allItems.filter((item: ListItem) => {
+        return item.refShortName === this.searchTerm; // FIXME: not quite right here, it mixes "branch" and "tag" names
+      }).length;
+    },
+    createNewRefFormActionUrl() {
+      return `${this.currentRepoLink}/branches/_new/${this.currentRefType}/${pathEscapeSegments(this.currentRefShortName)}`;
+    },
+  },
+  watch: {
+    menuVisible(visible: boolean) {
+      if (!visible) return;
+      this.focusSearchField();
+      this.loadTabItems();
+    },
   },
   data() {
     const shouldShowTabBranches = this.elRoot.getAttribute('data-show-tab-branches') === 'true';
@@ -49,7 +89,7 @@ export default defineComponent({
       currentRepoDefaultBranch: this.elRoot.getAttribute('data-current-repo-default-branch'),
       currentRepoLink: this.elRoot.getAttribute('data-current-repo-link'),
       currentTreePath: this.elRoot.getAttribute('data-current-tree-path'),
-      currentRefType: this.elRoot.getAttribute('data-current-ref-type') as GitRefType,
+      currentRefType: this.elRoot.getAttribute('data-current-ref-type'),
       currentRefShortName: this.elRoot.getAttribute('data-current-ref-short-name'),
 
       refLinkTemplate: this.elRoot.getAttribute('data-ref-link-template'),
@@ -61,46 +101,6 @@ export default defineComponent({
       showViewAllRefsEntry: this.elRoot.getAttribute('data-show-view-all-refs-entry') === 'true',
       enableFeed: this.elRoot.getAttribute('data-enable-feed') === 'true',
     };
-  },
-  computed: {
-    searchFieldPlaceholder() {
-      return this.selectedTab === 'branches' ? this.textFilterBranch : this.textFilterTag;
-    },
-    filteredItems(): ListItem[] {
-      const searchTermLower = this.searchTerm.toLowerCase();
-      const items = this.allItems.filter((item: ListItem) => {
-        const typeMatched = (this.selectedTab === 'branches' && item.refType === 'branch') || (this.selectedTab === 'tags' && item.refType === 'tag');
-        if (!typeMatched) return false;
-        if (!this.searchTerm) return true; // match all
-        return item.refShortName.toLowerCase().includes(searchTermLower);
-      });
-
-      // TODO: fix this anti-pattern: side-effects-in-computed-properties
-      this.activeItemIndex = !items.length && this.showCreateNewRef ? 0 : -1; // eslint-disable-line vue/no-side-effects-in-computed-properties
-      return items;
-    },
-    showNoResults() {
-      if (this.tabLoadingStates[this.selectedTab] !== 'done') return false;
-      return !this.filteredItems.length && !this.showCreateNewRef;
-    },
-    showCreateNewRef() {
-      if (!this.allowCreateNewRef || !this.searchTerm) {
-        return false;
-      }
-      return !this.allItems.filter((item: ListItem) => {
-        return item.refShortName === this.searchTerm; // FIXME: not quite right here, it mixes "branch" and "tag" names
-      }).length;
-    },
-    createNewRefFormActionUrl() {
-      return `${this.currentRepoLink}/branches/_new/${this.currentRefType}/${pathEscapeSegments(this.currentRefShortName)}`;
-    },
-  },
-  watch: {
-    menuVisible(visible: boolean) {
-      if (!visible) return;
-      this.focusSearchField();
-      this.loadTabItems();
-    },
   },
   beforeMount() {
     document.body.addEventListener('click', (e) => {
@@ -139,11 +139,11 @@ export default defineComponent({
       }
     },
     createNewRef() {
-      (this.$refs.createNewRefForm as HTMLFormElement)?.submit();
+      this.$refs.createNewRefForm?.submit();
     },
     focusSearchField() {
       nextTick(() => {
-        (this.$refs.searchField as HTMLInputElement).focus();
+        this.$refs.searchField.focus();
       });
     },
     getSelectedIndexInFiltered() {
@@ -154,7 +154,6 @@ export default defineComponent({
     },
     getActiveItem() {
       const el = this.$refs[`listItem${this.activeItemIndex}`]; // eslint-disable-line no-jquery/variable-pattern
-      // @ts-expect-error - el is unknown type
       return (el && el.length) ? el[0] : null;
     },
     keydown(e) {
@@ -213,7 +212,9 @@ export default defineComponent({
       }
     },
   },
-});
+};
+
+export default sfc; // activate IDE's Vue plugin
 </script>
 <template>
   <div class="ui dropdown custom branch-selector-dropdown ellipsis-items-nowrap">

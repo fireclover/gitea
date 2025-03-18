@@ -80,6 +80,22 @@ func (err ErrPullRequestAlreadyExists) Unwrap() error {
 	return util.ErrAlreadyExist
 }
 
+// ErrPullWasClosed is used close a closed pull request
+type ErrPullWasClosed struct {
+	ID    int64
+	Index int64
+}
+
+// IsErrPullWasClosed checks if an error is a ErrErrPullWasClosed.
+func IsErrPullWasClosed(err error) bool {
+	_, ok := err.(ErrPullWasClosed)
+	return ok
+}
+
+func (err ErrPullWasClosed) Error() string {
+	return fmt.Sprintf("Pull request [%d] %d was already closed", err.ID, err.Index)
+}
+
 // PullRequestType defines pull request type
 type PullRequestType int
 
@@ -285,7 +301,7 @@ func (pr *PullRequest) LoadRequestedReviewers(ctx context.Context) error {
 		return nil
 	}
 
-	reviews, _, err := GetReviewsByIssueID(ctx, pr.Issue.ID)
+	reviews, err := GetReviewsByIssueID(ctx, pr.Issue.ID)
 	if err != nil {
 		return err
 	}
@@ -304,7 +320,7 @@ func (pr *PullRequest) LoadRequestedReviewers(ctx context.Context) error {
 
 // LoadRequestedReviewersTeams loads the requested reviewers teams.
 func (pr *PullRequest) LoadRequestedReviewersTeams(ctx context.Context) error {
-	reviews, _, err := GetReviewsByIssueID(ctx, pr.Issue.ID)
+	reviews, err := GetReviewsByIssueID(ctx, pr.Issue.ID)
 	if err != nil {
 		return err
 	}

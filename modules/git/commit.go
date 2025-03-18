@@ -476,12 +476,8 @@ func (c *Commit) GetRepositoryDefaultPublicGPGKey(forceUpdate bool) (*GPGSetting
 }
 
 func IsStringLikelyCommitID(objFmt ObjectFormat, s string, minLength ...int) bool {
-	maxLen := 64 // sha256
-	if objFmt != nil {
-		maxLen = objFmt.FullLength()
-	}
-	minLen := util.OptionalArg(minLength, maxLen)
-	if len(s) < minLen || len(s) > maxLen {
+	minLen := util.OptionalArg(minLength, objFmt.FullLength())
+	if len(s) < minLen || len(s) > objFmt.FullLength() {
 		return false
 	}
 	for _, c := range s {

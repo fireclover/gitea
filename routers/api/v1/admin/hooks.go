@@ -34,30 +34,11 @@ func ListHooks(ctx *context.APIContext) {
 	//   in: query
 	//   description: page size of results
 	//   type: integer
-	// - type: string
-	//   enum:
-	//     - system
-	//     - default
-	//     - all
-	//   description: system, default or both kinds of webhooks
-	//   name: type
-	//   default: system
-	//   in: query
-	//
 	// responses:
 	//   "200":
 	//     "$ref": "#/responses/HookList"
 
-	// for compatibility the default value is true
-	isSystemWebhook := optional.Some(true)
-	typeValue := ctx.FormString("type")
-	if typeValue == "default" {
-		isSystemWebhook = optional.Some(false)
-	} else if typeValue == "all" {
-		isSystemWebhook = optional.None[bool]()
-	}
-
-	sysHooks, err := webhook.GetSystemOrDefaultWebhooks(ctx, isSystemWebhook)
+	sysHooks, err := webhook.GetSystemWebhooks(ctx, optional.None[bool]())
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, "GetSystemWebhooks", err)
 		return

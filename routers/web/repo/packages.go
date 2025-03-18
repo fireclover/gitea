@@ -62,7 +62,9 @@ func Packages(ctx *context.Context) {
 	ctx.Data["PackageType"] = packageType
 	ctx.Data["AvailableTypes"] = packages.TypeList
 	ctx.Data["HasPackages"] = hasPackages
-	ctx.Data["CanWritePackages"] = ctx.Repo.CanWrite(unit.TypePackages) || ctx.IsUserSiteAdmin()
+	if ctx.Repo != nil {
+		ctx.Data["CanWritePackages"] = ctx.IsUserRepoWriter([]unit.Type{unit.TypePackages}) || ctx.IsUserSiteAdmin()
+	}
 	ctx.Data["PackageDescriptors"] = pds
 	ctx.Data["Total"] = total
 	ctx.Data["RepositoryAccessMap"] = map[int64]bool{ctx.Repo.Repository.ID: true} // There is only the current repository

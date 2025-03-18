@@ -9,7 +9,6 @@ _test
 
 # IntelliJ
 .idea
-.run
 
 # IntelliJ Gateway
 .uuid
@@ -59,7 +58,7 @@ cpu.out
 
 /bin
 /dist
-/custom/*
+#/custom/*
 !/custom/conf/app.example.ini
 /data
 /indexers

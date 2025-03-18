@@ -26,14 +26,14 @@ func (comments CommentList) LoadPosters(ctx context.Context) error {
 		return c.PosterID, c.Poster == nil && c.PosterID > 0
 	})
 
-	posterMaps, err := user_model.GetUsersMapByIDs(ctx, posterIDs)
+	posterMaps, err := getPostersByIDs(ctx, posterIDs)
 	if err != nil {
 		return err
 	}
 
 	for _, comment := range comments {
 		if comment.Poster == nil {
-			comment.Poster = user_model.GetPossibleUserFromMap(comment.PosterID, posterMaps)
+			comment.Poster = getPoster(comment.PosterID, posterMaps)
 		}
 	}
 	return nil
@@ -41,7 +41,7 @@ func (comments CommentList) LoadPosters(ctx context.Context) error {
 
 func (comments CommentList) getLabelIDs() []int64 {
 	return container.FilterSlice(comments, func(comment *Comment) (int64, bool) {
-		return comment.LabelID, comment.LabelID > 0 && comment.Label == nil
+		return comment.LabelID, comment.LabelID > 0
 	})
 }
 
@@ -51,9 +51,6 @@ func (comments CommentList) loadLabels(ctx context.Context) error {
 	}
 
 	labelIDs := comments.getLabelIDs()
-	if len(labelIDs) == 0 {
-		return nil
-	}
 	commentLabels := make(map[int64]*Label, len(labelIDs))
 	left := len(labelIDs)
 	for left > 0 {
@@ -121,8 +118,8 @@ func (comments CommentList) loadMilestones(ctx context.Context) error {
 		milestoneIDs = milestoneIDs[limit:]
 	}
 
-	for _, comment := range comments {
-		comment.Milestone = milestoneMaps[comment.MilestoneID]
+	for _, issue := range comments {
+		issue.Milestone = milestoneMaps[issue.MilestoneID]
 	}
 	return nil
 }
@@ -178,9 +175,6 @@ func (comments CommentList) loadAssignees(ctx context.Context) error {
 	}
 
 	assigneeIDs := comments.getAssigneeIDs()
-	if len(assigneeIDs) == 0 {
-		return nil
-	}
 	assignees := make(map[int64]*user_model.User, len(assigneeIDs))
 	left := len(assigneeIDs)
 	for left > 0 {
@@ -307,9 +301,6 @@ func (comments CommentList) loadDependentIssues(ctx context.Context) error {
 
 	e := db.GetEngine(ctx)
 	issueIDs := comments.getDependentIssueIDs()
-	if len(issueIDs) == 0 {
-		return nil
-	}
 	issues := make(map[int64]*Issue, len(issueIDs))
 	left := len(issueIDs)
 	for left > 0 {
@@ -436,9 +427,6 @@ func (comments CommentList) loadReviews(ctx context.Context) error {
 	}
 
 	reviewIDs := comments.getReviewIDs()
-	if len(reviewIDs) == 0 {
-		return nil
-	}
 	reviews := make(map[int64]*Review, len(reviewIDs))
 	if err := db.GetEngine(ctx).In("id", reviewIDs).Find(&reviews); err != nil {
 		return err

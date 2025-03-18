@@ -10,8 +10,6 @@ import (
 	"testing"
 
 	"code.gitea.io/gitea/modules/git"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func BenchmarkGetCommitGraph(b *testing.B) {
@@ -237,7 +235,9 @@ func TestParseGlyphs(t *testing.T) {
 		}
 		row++
 	}
-	assert.Len(t, parser.availableColors, 9)
+	if len(parser.availableColors) != 9 {
+		t.Errorf("Expected 9 colors but have %d", len(parser.availableColors))
+	}
 }
 
 func TestCommitStringParsing(t *testing.T) {
@@ -262,7 +262,9 @@ func TestCommitStringParsing(t *testing.T) {
 				return
 			}
 
-			assert.Equal(t, test.commitMessage, commit.Subject)
+			if test.commitMessage != commit.Subject {
+				t.Errorf("%s does not match %s", test.commitMessage, commit.Subject)
+			}
 		})
 	}
 }

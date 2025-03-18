@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestCommitsCount(t *testing.T) {
@@ -92,7 +91,9 @@ empty commit`
 
 	commitFromReader, err := CommitFromReader(gitRepo, sha, strings.NewReader(commitString))
 	assert.NoError(t, err)
-	require.NotNil(t, commitFromReader)
+	if !assert.NotNil(t, commitFromReader) {
+		return
+	}
 	assert.EqualValues(t, sha, commitFromReader.ID)
 	assert.EqualValues(t, `-----BEGIN PGP SIGNATURE-----
 
@@ -158,7 +159,9 @@ ISO-8859-1`
 
 	commitFromReader, err := CommitFromReader(gitRepo, sha, strings.NewReader(commitString))
 	assert.NoError(t, err)
-	require.NotNil(t, commitFromReader)
+	if !assert.NotNil(t, commitFromReader) {
+		return
+	}
 	assert.EqualValues(t, sha, commitFromReader.ID)
 	assert.EqualValues(t, `-----BEGIN PGP SIGNATURE-----
 

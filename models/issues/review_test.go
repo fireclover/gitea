@@ -162,9 +162,8 @@ func TestGetReviewersByIssueID(t *testing.T) {
 		},
 	)
 
-	allReviews, migratedReviews, err := issues_model.GetReviewsByIssueID(db.DefaultContext, issue.ID)
+	allReviews, err := issues_model.GetReviewsByIssueID(db.DefaultContext, issue.ID)
 	assert.NoError(t, err)
-	assert.Empty(t, migratedReviews)
 	for _, review := range allReviews {
 		assert.NoError(t, review.LoadReviewer(db.DefaultContext))
 	}

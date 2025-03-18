@@ -66,7 +66,7 @@ func TestDumpRestore(t *testing.T) {
 			Milestones:     true,
 			Comments:       true,
 			AuthToken:      token,
-			CloneAddr:      repo.CloneLinkGeneral(context.Background()).HTTPS,
+			CloneAddr:      repo.CloneLink().HTTPS,
 			RepoName:       reponame,
 		}
 		err = migrations.DumpRepository(ctx, basePath, repoOwner.Name, opts)
@@ -96,7 +96,7 @@ func TestDumpRestore(t *testing.T) {
 		// Phase 3: dump restored from the Gitea instance to the filesystem
 		//
 		opts.RepoName = newreponame
-		opts.CloneAddr = newrepo.CloneLinkGeneral(context.Background()).HTTPS
+		opts.CloneAddr = newrepo.CloneLink().HTTPS
 		err = migrations.DumpRepository(ctx, basePath, repoOwner.Name, opts)
 		assert.NoError(t, err)
 

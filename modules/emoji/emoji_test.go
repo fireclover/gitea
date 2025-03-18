@@ -5,6 +5,7 @@
 package emoji
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,18 +22,32 @@ func TestLookup(t *testing.T) {
 	c := FromAlias(":beer:")
 	d := FromAlias("beer")
 
-	assert.Equal(t, a, b)
-	assert.Equal(t, b, c)
-	assert.Equal(t, c, d)
-	assert.Equal(t, a, d)
+	if !reflect.DeepEqual(a, b) {
+		t.Errorf("a and b should equal")
+	}
+	if !reflect.DeepEqual(b, c) {
+		t.Errorf("b and c should equal")
+	}
+	if !reflect.DeepEqual(c, d) {
+		t.Errorf("c and d should equal")
+	}
+	if !reflect.DeepEqual(a, d) {
+		t.Errorf("a and d should equal")
+	}
 
 	m := FromCode("\U0001f44d")
 	n := FromAlias(":thumbsup:")
 	o := FromAlias("+1")
 
-	assert.Equal(t, m, n)
-	assert.Equal(t, m, o)
-	assert.Equal(t, n, o)
+	if !reflect.DeepEqual(m, n) {
+		t.Errorf("m and n should equal")
+	}
+	if !reflect.DeepEqual(n, o) {
+		t.Errorf("n and o should equal")
+	}
+	if !reflect.DeepEqual(m, o) {
+		t.Errorf("m and o should equal")
+	}
 }
 
 func TestReplacers(t *testing.T) {
@@ -46,7 +61,9 @@ func TestReplacers(t *testing.T) {
 
 	for i, x := range tests {
 		s := x.f(x.v)
-		assert.Equalf(t, x.exp, s, "test %d `%s` expected `%s`, got: `%s`", i, x.v, x.exp, s)
+		if s != x.exp {
+			t.Errorf("test %d `%s` expected `%s`, got: `%s`", i, x.v, x.exp, s)
+		}
 	}
 }
 

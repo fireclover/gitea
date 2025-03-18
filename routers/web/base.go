@@ -34,7 +34,7 @@ func storageHandler(storageSetting *setting.Storage, prefix string, objStore sto
 				http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 				return
 			}
-			defer routing.RecordFuncInfo(req.Context(), funcInfo)()
+			routing.UpdateFuncInfo(req.Context(), funcInfo)
 
 			rPath := strings.TrimPrefix(req.URL.Path, "/"+prefix+"/")
 			rPath = util.PathJoinRelX(rPath)
@@ -65,7 +65,7 @@ func storageHandler(storageSetting *setting.Storage, prefix string, objStore sto
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		}
-		defer routing.RecordFuncInfo(req.Context(), funcInfo)()
+		routing.UpdateFuncInfo(req.Context(), funcInfo)
 
 		rPath := strings.TrimPrefix(req.URL.Path, "/"+prefix+"/")
 		rPath = util.PathJoinRelX(rPath)

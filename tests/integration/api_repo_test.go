@@ -735,5 +735,5 @@ func TestAPIRepoGetAssignees(t *testing.T) {
 	resp := MakeRequest(t, req, http.StatusOK)
 	var assignees []*api.User
 	DecodeJSON(t, resp, &assignees)
-	assert.Len(t, assignees, 2)
+	assert.Len(t, assignees, 1)
 }

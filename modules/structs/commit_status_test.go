@@ -5,8 +5,6 @@ package structs
 
 import (
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestNoBetterThan(t *testing.T) {
@@ -168,7 +166,9 @@ func TestNoBetterThan(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.args.css.NoBetterThan(tt.args.css2)
-			assert.Equal(t, tt.want, result)
+			if result != tt.want {
+				t.Errorf("NoBetterThan() = %v, want %v", result, tt.want)
+			}
 		})
 	}
 }

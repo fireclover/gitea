@@ -231,7 +231,9 @@ func APIContexter() func(http.Handler) http.Handler {
 
 			httpcache.SetCacheControlInHeader(ctx.Resp.Header(), 0, "no-transform")
 			ctx.Resp.Header().Set(`X-Frame-Options`, setting.CORSConfig.XFrameOptions)
-
+			if setting.CSPConfig.Enabled {
+				ctx.Resp.Header().Set(`Content-Security-Policy`, strings.Join(setting.CSPConfig.Directives, "; "))
+			}
 			next.ServeHTTP(ctx.Resp, ctx.Req)
 		})
 	}
@@ -293,7 +295,8 @@ func RepoRefForAPI(next http.Handler) http.Handler {
 			return
 		}
 
-		refName, _ := getRefNameLegacy(ctx.Base, ctx.Repo, ctx.PathParam("*"), ctx.FormTrim("ref"))
+		// NOTICE: the "ref" here for internal usage only (e.g. woodpecker)
+		refName, _ := getRefNameLegacy(ctx.Base, ctx.Repo, ctx.FormTrim("ref"))
 		var err error
 
 		if ctx.Repo.GitRepo.IsBranchExist(refName) {

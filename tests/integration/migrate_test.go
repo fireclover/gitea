@@ -79,12 +79,8 @@ func TestMigrateGiteaForm(t *testing.T) {
 		resp := session.MakeRequest(t, req, http.StatusOK)
 		// Step 2: load the form
 		htmlDoc := NewHTMLParser(t, resp.Body)
-		form := htmlDoc.doc.Find(`form.ui.form[action^="/repo/migrate"]`)
-		link, exists := form.Attr("action")
+		link, exists := htmlDoc.doc.Find(`form.ui.form[action^="/repo/migrate"]`).Attr("action")
 		assert.True(t, exists, "The template has changed")
-		serviceInput, exists := form.Find(`input[name="service"]`).Attr("value")
-		assert.True(t, exists)
-		assert.EqualValues(t, fmt.Sprintf("%d", structs.GiteaService), serviceInput)
 		// Step 4: submit the migration to only migrate issues
 		migratedRepoName := "otherrepo"
 		req = NewRequestWithValues(t, "POST", link, map[string]string{

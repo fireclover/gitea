@@ -16,35 +16,37 @@ import (
 type ArchiveType int
 
 const (
-	ArchiveUnknown ArchiveType = iota
-	ArchiveZip                 // 1
-	ArchiveTarGz               // 2
-	ArchiveBundle              // 3
+	// ZIP zip archive type
+	ZIP ArchiveType = iota + 1
+	// TARGZ tar gz archive type
+	TARGZ
+	// BUNDLE bundle archive type
+	BUNDLE
 )
 
-// String converts an ArchiveType to string: the extension of the archive file without prefix dot
+// String converts an ArchiveType to string
 func (a ArchiveType) String() string {
 	switch a {
-	case ArchiveZip:
+	case ZIP:
 		return "zip"
-	case ArchiveTarGz:
+	case TARGZ:
 		return "tar.gz"
-	case ArchiveBundle:
+	case BUNDLE:
 		return "bundle"
 	}
 	return "unknown"
 }
 
-func SplitArchiveNameType(s string) (string, ArchiveType) {
-	switch {
-	case strings.HasSuffix(s, ".zip"):
-		return strings.TrimSuffix(s, ".zip"), ArchiveZip
-	case strings.HasSuffix(s, ".tar.gz"):
-		return strings.TrimSuffix(s, ".tar.gz"), ArchiveTarGz
-	case strings.HasSuffix(s, ".bundle"):
-		return strings.TrimSuffix(s, ".bundle"), ArchiveBundle
+func ToArchiveType(s string) ArchiveType {
+	switch s {
+	case "zip":
+		return ZIP
+	case "tar.gz":
+		return TARGZ
+	case "bundle":
+		return BUNDLE
 	}
-	return s, ArchiveUnknown
+	return 0
 }
 
 // CreateArchive create archive content to the target path

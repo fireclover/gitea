@@ -20,7 +20,6 @@ import (
 	user_model "code.gitea.io/gitea/models/user"
 	"code.gitea.io/gitea/modules/base"
 	"code.gitea.io/gitea/modules/git"
-	giturl "code.gitea.io/gitea/modules/git/url"
 	"code.gitea.io/gitea/modules/httplib"
 	"code.gitea.io/gitea/modules/log"
 	"code.gitea.io/gitea/modules/markup"
@@ -280,8 +279,6 @@ func (repo *Repository) IsBroken() bool {
 }
 
 // MarkAsBrokenEmpty marks the repo as broken and empty
-// FIXME: the status "broken" and "is_empty" were abused,
-// The code always set them together, no way to distinguish whether a repo is really "empty" or "broken"
 func (repo *Repository) MarkAsBrokenEmpty() {
 	repo.Status = RepositoryBroken
 	repo.IsEmpty = true
@@ -638,25 +635,13 @@ type CloneLink struct {
 }
 
 // ComposeHTTPSCloneURL returns HTTPS clone URL based on given owner and repository name.
-func ComposeHTTPSCloneURL(ctx context.Context, owner, repo string) string {
-	return fmt.Sprintf("%s%s/%s.git", httplib.GuessCurrentAppURL(ctx), url.PathEscape(owner), url.PathEscape(repo))
+func ComposeHTTPSCloneURL(owner, repo string) string {
+	return fmt.Sprintf("%s%s/%s.git", setting.AppURL, url.PathEscape(owner), url.PathEscape(repo))
 }
 
-func ComposeSSHCloneURL(doer *user_model.User, ownerName, repoName string) string {
+func ComposeSSHCloneURL(ownerName, repoName string) string {
 	sshUser := setting.SSH.User
 	sshDomain := setting.SSH.Domain
-
-	if sshUser == "(DOER_USERNAME)" {
-		// Some users use SSH reverse-proxy and need to use the current signed-in username as the SSH user
-		// to make the SSH reverse-proxy could prepare the user's public keys ahead.
-		// For most cases we have the correct "doer", then use it as the SSH user.
-		// If we can't get the doer, then use the built-in SSH user.
-		if doer != nil {
-			sshUser = doer.Name
-		} else {
-			sshUser = setting.SSH.BuiltinServerUser
-		}
-	}
 
 	// non-standard port, it must use full URI
 	if setting.SSH.Port != 22 {
@@ -675,20 +660,21 @@ func ComposeSSHCloneURL(doer *user_model.User, ownerName, repoName string) strin
 	return fmt.Sprintf("%s@%s:%s/%s.git", sshUser, sshHost, url.PathEscape(ownerName), url.PathEscape(repoName))
 }
 
-func (repo *Repository) cloneLink(ctx context.Context, doer *user_model.User, repoPathName string) *CloneLink {
+func (repo *Repository) cloneLink(isWiki bool) *CloneLink {
+	repoName := repo.Name
+	if isWiki {
+		repoName += ".wiki"
+	}
+
 	cl := new(CloneLink)
-	cl.SSH = ComposeSSHCloneURL(doer, repo.OwnerName, repoPathName)
-	cl.HTTPS = ComposeHTTPSCloneURL(ctx, repo.OwnerName, repoPathName)
+	cl.SSH = ComposeSSHCloneURL(repo.OwnerName, repoName)
+	cl.HTTPS = ComposeHTTPSCloneURL(repo.OwnerName, repoName)
 	return cl
 }
 
 // CloneLink returns clone URLs of repository.
-func (repo *Repository) CloneLink(ctx context.Context, doer *user_model.User) (cl *CloneLink) {
-	return repo.cloneLink(ctx, doer, repo.Name)
-}
-
-func (repo *Repository) CloneLinkGeneral(ctx context.Context) (cl *CloneLink) {
-	return repo.cloneLink(ctx, nil /* no doer, use a general git user */, repo.Name)
+func (repo *Repository) CloneLink() (cl *CloneLink) {
+	return repo.cloneLink(false)
 }
 
 // GetOriginalURLHostname returns the hostname of a URL or the URL
@@ -784,25 +770,47 @@ func GetRepositoryByName(ctx context.Context, ownerID int64, name string) (*Repo
 	return &repo, err
 }
 
-// GetRepositoryByURL returns the repository by given url
-func GetRepositoryByURL(ctx context.Context, repoURL string) (*Repository, error) {
-	ret, err := giturl.ParseRepositoryURL(ctx, repoURL)
-	if err != nil || ret.OwnerName == "" {
-		return nil, fmt.Errorf("unknown or malformed repository URL")
+// getRepositoryURLPathSegments returns segments (owner, reponame) extracted from a url
+func getRepositoryURLPathSegments(repoURL string) []string {
+	if strings.HasPrefix(repoURL, setting.AppURL) {
+		return strings.Split(strings.TrimPrefix(repoURL, setting.AppURL), "/")
 	}
-	return GetRepositoryByOwnerAndName(ctx, ret.OwnerName, ret.RepoName)
-}
 
-// GetRepositoryByURLRelax also accepts an SSH clone URL without user part
-func GetRepositoryByURLRelax(ctx context.Context, repoURL string) (*Repository, error) {
-	if !strings.Contains(repoURL, "://") && !strings.Contains(repoURL, "@") {
-		// convert "example.com:owner/repo" to "@example.com:owner/repo"
-		p1, p2, p3 := strings.Index(repoURL, "."), strings.Index(repoURL, ":"), strings.Index(repoURL, "/")
-		if 0 < p1 && p1 < p2 && p2 < p3 {
-			repoURL = "@" + repoURL
+	sshURLVariants := [4]string{
+		setting.SSH.Domain + ":",
+		setting.SSH.User + "@" + setting.SSH.Domain + ":",
+		"git+ssh://" + setting.SSH.Domain + "/",
+		"git+ssh://" + setting.SSH.User + "@" + setting.SSH.Domain + "/",
+	}
+
+	for _, sshURL := range sshURLVariants {
+		if strings.HasPrefix(repoURL, sshURL) {
+			return strings.Split(strings.TrimPrefix(repoURL, sshURL), "/")
 		}
 	}
-	return GetRepositoryByURL(ctx, repoURL)
+
+	return nil
+}
+
+// GetRepositoryByURL returns the repository by given url
+func GetRepositoryByURL(ctx context.Context, repoURL string) (*Repository, error) {
+	// possible urls for git:
+	//  https://my.domain/sub-path/<owner>/<repo>.git
+	//  https://my.domain/sub-path/<owner>/<repo>
+	//  git+ssh://user@my.domain/<owner>/<repo>.git
+	//  git+ssh://user@my.domain/<owner>/<repo>
+	//  user@my.domain:<owner>/<repo>.git
+	//  user@my.domain:<owner>/<repo>
+
+	pathSegments := getRepositoryURLPathSegments(repoURL)
+
+	if len(pathSegments) != 2 {
+		return nil, fmt.Errorf("unknown or malformed repository URL")
+	}
+
+	ownerName := pathSegments[0]
+	repoName := strings.TrimSuffix(pathSegments[1], ".git")
+	return GetRepositoryByOwnerAndName(ctx, ownerName, repoName)
 }
 
 // GetRepositoryByID returns the repository by given id if exists.

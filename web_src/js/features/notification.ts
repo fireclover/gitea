@@ -1,5 +1,6 @@
+import $ from 'jquery';
 import {GET} from '../modules/fetch.ts';
-import {toggleElem, type DOMEvent, createElementFromHTML} from '../utils/dom.ts';
+import {toggleElem, type DOMEvent} from '../utils/dom.ts';
 import {logoutFromWorker} from '../modules/worker.ts';
 
 const {appSubUrl, notificationSettings, assetVersionEncoded} = window.config;
@@ -157,8 +158,7 @@ async function updateNotificationTable() {
       }
 
       const data = await response.text();
-      const el = createElementFromHTML(data);
-      if (parseInt(el.getAttribute('data-sequence-number')) === notificationSequenceNumber) {
+      if ($(data).data('sequence-number') === notificationSequenceNumber) {
         notificationDiv.outerHTML = data;
         initNotificationsTable();
       }

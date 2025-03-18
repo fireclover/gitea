@@ -172,7 +172,7 @@ func getRemoteAddress(ownerName, repoName, remoteName string) (string, error) {
 		return "", fmt.Errorf("get remote %s's address of %s/%s failed: %v", remoteName, ownerName, repoName, err)
 	}
 
-	u, err := giturl.ParseGitURL(remoteURL)
+	u, err := giturl.Parse(remoteURL)
 	if err != nil {
 		return "", err
 	}

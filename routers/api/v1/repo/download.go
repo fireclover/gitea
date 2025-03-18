@@ -17,11 +17,11 @@ func DownloadArchive(ctx *context.APIContext) {
 	var tp git.ArchiveType
 	switch ballType := ctx.PathParam("ball_type"); ballType {
 	case "tarball":
-		tp = git.ArchiveTarGz
+		tp = git.TARGZ
 	case "zipball":
-		tp = git.ArchiveZip
+		tp = git.ZIP
 	case "bundle":
-		tp = git.ArchiveBundle
+		tp = git.BUNDLE
 	default:
 		ctx.Error(http.StatusBadRequest, "", fmt.Sprintf("Unknown archive type: %s", ballType))
 		return
@@ -36,7 +36,7 @@ func DownloadArchive(ctx *context.APIContext) {
 		}
 	}
 
-	r, err := archiver_service.NewRequest(ctx.Repo.Repository.ID, ctx.Repo.GitRepo, ctx.PathParam("*")+"."+tp.String())
+	r, err := archiver_service.NewRequest(ctx.Repo.Repository.ID, ctx.Repo.GitRepo, ctx.PathParam("*"), tp)
 	if err != nil {
 		ctx.ServerError("NewRequest", err)
 		return
