@@ -1,12 +1,11 @@
 # Build stage
-FROM docker.io/library/golang:1.23-alpine3.21 AS build-env
+FROM docker.io/library/golang:1.24-alpine3.21 AS build-env
 
 ARG GOPROXY
 ENV GOPROXY=${GOPROXY:-direct}
 
 ARG GITEA_VERSION
-#ARG TAGS="sqlite sqlite_unlock_notify"
-ARG TAGS
+ARG TAGS="sqlite sqlite_unlock_notify"
 ENV TAGS="bindata timetzdata $TAGS"
 ARG CGO_EXTRA_CFLAGS
 
@@ -23,9 +22,8 @@ COPY . ${GOPATH}/src/code.gitea.io/gitea
 WORKDIR ${GOPATH}/src/code.gitea.io/gitea
 
 # Checkout version if set
-# RUN if [ -n "${GITEA_VERSION}" ]; then git checkout "${GITEA_VERSION}"; fi \
-#  && make clean-all build
-RUN make clean-all build
+RUN if [ -n "${GITEA_VERSION}" ]; then git checkout "${GITEA_VERSION}"; fi \
+ && make clean-all build
 
 # Begin env-to-ini build
 RUN go build contrib/environment-to-ini/environment-to-ini.go
@@ -44,7 +42,7 @@ RUN chmod 755 /tmp/local/usr/bin/entrypoint \
 RUN chmod 644 /go/src/code.gitea.io/gitea/contrib/autocompletion/bash_autocomplete
 
 FROM docker.io/library/alpine:3.21
-LABEL maintainer="maintainers@fireclover.cloud"
+LABEL maintainer="maintainers@gitea.io"
 
 EXPOSE 22 3000
 
@@ -83,8 +81,6 @@ ENTRYPOINT ["/usr/bin/entrypoint"]
 CMD ["/usr/bin/s6-svscan", "/etc/s6"]
 
 COPY --from=build-env /tmp/local /
-# Leaving a copy in here to make sure we have a copy to update if volume is empty
-COPY --from=build-env /go/src/code.gitea.io/gitea/custom /opt/gitea-default-custom
 COPY --from=build-env /go/src/code.gitea.io/gitea/gitea /app/gitea/gitea
 COPY --from=build-env /go/src/code.gitea.io/gitea/environment-to-ini /usr/local/bin/environment-to-ini
 COPY --from=build-env /go/src/code.gitea.io/gitea/contrib/autocompletion/bash_autocomplete /etc/profile.d/gitea_bash_autocomplete.sh
