@@ -140,5 +140,6 @@
     "safe-buffer": "npm:@nolyfill/safe-buffer@^1",
     "safer-buffer": "npm:@nolyfill/safer-buffer@^1",
     "string.prototype.trimend": "npm:@nolyfill/string.prototype.trimend@^1"
-  }
+  },
+  "version": "0.0.1"
 }
