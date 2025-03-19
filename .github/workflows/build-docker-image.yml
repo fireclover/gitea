@@ -1,5 +1,5 @@
 name: Build FC Gitea image
-run-name: Deploying ${{ github.ref_name }}
+#run-name: Deploying ${{ github.ref_name }}
 
 on:
   workflow_dispatch:
@@ -89,7 +89,6 @@ env:
 
 jobs:
   build-publish-images:
-    needs: [diff]
     runs-on: ubuntu-latest
     permissions:
       contents: write
