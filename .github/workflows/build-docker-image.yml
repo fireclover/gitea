@@ -87,6 +87,7 @@ env:
   GITEA_IMAGE_NAME: fireclover/gitea
   FARADAY_IMAGE_NAME: fireclover/faraday
   #IMAGE_NAME: ${{ github.repository }}
+  GITEA_VERSION: 'fireclover-1.0'
 
 jobs:
   build-publish-images:
