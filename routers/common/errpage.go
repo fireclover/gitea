@@ -6,6 +6,7 @@ package common
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	user_model "code.gitea.io/gitea/models/user"
 	"code.gitea.io/gitea/modules/httpcache"
@@ -34,6 +35,10 @@ func RenderPanicErrorPage(w http.ResponseWriter, req *http.Request, err any) {
 
 	httpcache.SetCacheControlInHeader(w.Header(), &httpcache.CacheControlOptions{NoTransform: true})
 	w.Header().Set(`X-Frame-Options`, setting.CORSConfig.XFrameOptions)
+	if setting.CSPConfig.Enabled {
+		w.Header().Set(`Content-Security-Policy`, strings.Join(setting.CSPConfig.Directives, "; "))
+	}
+
 
 	tmplCtx := context.TemplateContext{}
 	tmplCtx["Locale"] = middleware.Locale(w, req)

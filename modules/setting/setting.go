@@ -207,6 +207,7 @@ func LoadSettings() {
 	loadCacheFrom(CfgProvider)
 	loadSessionFrom(CfgProvider)
 	loadCorsFrom(CfgProvider)
+	loadCspFrom(CfgProvider)
 	loadMailsFrom(CfgProvider)
 	loadProxyFrom(CfgProvider)
 	loadWebhookFrom(CfgProvider)
