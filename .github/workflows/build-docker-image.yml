@@ -86,7 +86,7 @@ env:
   FARADAY_IMAGE_NAME: fireclover/faraday
   #IMAGE_NAME: ${{ github.repository }}
 
-
+jobs:
   build-publish-images:
     needs: [diff]
     runs-on: ubuntu-latest
