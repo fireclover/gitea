@@ -1,4 +1,5 @@
 name: Build FC Gitea image
+run-name: Deploying ${{ github.ref_name }}
 
 on:
   workflow_dispatch:
