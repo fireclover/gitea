@@ -231,7 +231,9 @@ func APIContexter() func(http.Handler) http.Handler {
 
 			httpcache.SetCacheControlInHeader(ctx.Resp.Header(), 0, "no-transform")
 			ctx.Resp.Header().Set(`X-Frame-Options`, setting.CORSConfig.XFrameOptions)
-
+			if setting.CSPConfig.Enabled {
+				ctx.Resp.Header().Set(`Content-Security-Policy`, strings.Join(setting.CSPConfig.Directives, "; "))
+			}
 			next.ServeHTTP(ctx.Resp, ctx.Req)
 		})
 	}
