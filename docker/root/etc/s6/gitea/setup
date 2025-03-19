@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# In the event where we have a set of custom files, but unable to upload to volume, we can use those from docker image
+if [[ ! -f ${GITEA_CUSTOM}/conf/app.ini && -f /opt/gitea-default-custom/conf/app.ini ]]; then
+    cp -r /opt/gitea-default-custom/* ${GITEA_CUSTOM}
+    INTERNAL_TOKEN=$(gitea generate secret INTERNAL_TOKEN) \
+    JWT_SECRET=$(gitea generate secret JWT_SECRET) \
+    SECRET_KEY=$(gitea generate secret SECRET_KEY) \
+    envsubst < /opt/gitea-default-custom/conf/app.ini > ${GITEA_CUSTOM}/conf/app.ini
+fi
+
 if [ ! -d /data/git/.ssh ]; then
     mkdir -p /data/git/.ssh
 fi
@@ -21,6 +30,7 @@ elif ! grep -q "^GITEA_CUSTOM=$GITEA_CUSTOM$" /data/git/.ssh/environment; then
     sed -i /^GITEA_CUSTOM=/d /data/git/.ssh/environment
     echo "GITEA_CUSTOM=$GITEA_CUSTOM" >> /data/git/.ssh/environment
 fi
+
 
 if [ ! -f ${GITEA_CUSTOM}/conf/app.ini ]; then
     mkdir -p ${GITEA_CUSTOM}/conf

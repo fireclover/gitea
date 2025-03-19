@@ -31,6 +31,7 @@ const (
 	TypeProjects                    // 8 Projects
 	TypePackages                    // 9 Packages
 	TypeActions                     // 10 Actions
+	TypeServices                    // 11 Services
 )
 
 // Value returns integer value for unit type (used by template)
@@ -60,6 +61,7 @@ var (
 		TypeProjects,
 		TypePackages,
 		TypeActions,
+		TypeServices,
 	}
 
 	// DefaultRepoUnits contains the default unit types
@@ -72,6 +74,7 @@ var (
 		TypeProjects,
 		TypePackages,
 		TypeActions,
+		TypeServices,
 	}
 
 	// ForkRepoUnits contains the default unit types for forks
@@ -99,6 +102,7 @@ var (
 		TypeWiki,
 		TypeProjects,
 		TypePackages,
+		TypeServices,
 	}
 
 	// NotAllowedDefaultRepoUnits contains units that can't be default
@@ -333,6 +337,15 @@ var (
 		perm.AccessModeOwner,
 	}
 
+	UnitServices = Unit{
+		TypeServices,
+		"repo.services",
+		"/services",
+		"services.desc",
+		8,
+		perm.AccessModeOwner,
+	}
+
 	// Units contains all the units
 	Units = map[Type]Unit{
 		TypeCode:            UnitCode,
@@ -345,6 +358,7 @@ var (
 		TypeProjects:        UnitProjects,
 		TypePackages:        UnitPackages,
 		TypeActions:         UnitActions,
+		TypeServices:        UnitServices,
 	}
 )
 

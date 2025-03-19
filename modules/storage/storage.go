@@ -125,6 +125,9 @@ var (
 	// Packages represents packages storage
 	Packages ObjectStorage = uninitializedStorage
 
+	// Services represents packages storage
+	Services ObjectStorage = uninitializedStorage
+
 	// Actions represents actions storage
 	Actions ObjectStorage = uninitializedStorage
 	// Actions Artifacts represents actions artifacts storage
@@ -140,6 +143,7 @@ func Init() error {
 		initLFS,
 		initRepoArchives,
 		initPackages,
+		initServices,
 		initActions,
 	} {
 		if err := f(); err != nil {
@@ -207,6 +211,16 @@ func initPackages() (err error) {
 	}
 	log.Info("Initialising Packages storage with type: %s", setting.Packages.Storage.Type)
 	Packages, err = NewStorage(setting.Packages.Storage.Type, setting.Packages.Storage)
+	return err
+}
+
+func initServices() (err error) {
+	if !setting.Services.Enabled {
+		Services = discardStorage("Services isn't enabled")
+		return nil
+	}
+	log.Info("Initialising Services storage with type: %s", setting.Services.Storage.Type)
+	Services, err = NewStorage(setting.Services.Storage.Type, setting.Services.Storage)
 	return err
 }
 
